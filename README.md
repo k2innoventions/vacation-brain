@@ -1,6 +1,6 @@
 # vacation-brain
 
-A mobile app built with [Expo](https://expo.dev) and React Native (TypeScript).
+A mobile app built with [Expo](https://expo.dev) and React Native (TypeScript), using [Expo Router](https://expo.github.io/router) for file-based navigation.
 
 ## Getting started
 
@@ -26,30 +26,38 @@ npm run android
 
 # Open directly on iOS (macOS only)
 npm run ios
-
-# Open in a web browser
-npm run web
 ```
 
 ## Project structure
 
 ```
 vacation-brain/
-├── App.tsx               # Root component
-├── index.ts              # App entry point
-├── app.json              # Expo configuration
-├── tsconfig.json         # TypeScript configuration
-├── assets/               # Images, icons, splash screens
+├── app/                  # Expo Router file-based routes
+│   ├── _layout.tsx       # Root layout (Stack navigator + providers)
+│   └── index.tsx         # Home screen (placeholder)
 ├── src/
 │   ├── components/       # Shared UI components
-│   ├── screens/          # Screen-level components
-│   ├── navigation/       # Navigation configuration
+│   ├── context/          # React Context providers
+│   │   └── AppContext.tsx
 │   ├── hooks/            # Custom React hooks
+│   ├── navigation/       # Navigation utilities and typed route helpers
 │   └── types/            # TypeScript type definitions
+├── assets/               # Icons and splash screens
+├── app.json              # Expo configuration
+├── babel.config.js       # Babel config (babel-preset-expo)
+├── tsconfig.json         # TypeScript config (strict, @/ path alias)
 ├── docs/
 │   └── product/          # Product documentation
 ├── intelligence/         # AI/intelligence layer documentation
 └── scenarios/            # Use-case scenarios
+```
+
+### Path aliases
+
+`@/` maps to `src/`. Use it instead of deep relative imports:
+
+```ts
+import { useAppContext } from '@/context/AppContext';
 ```
 
 ## Documentation
