@@ -1,3 +1,4 @@
+
 # Vacation Brain
 
 > Go make memories that become stories. We'll handle the rest.
@@ -27,3 +28,4 @@ Every recommendation, notification, screen, and system decision should support o
 Vacation Brain is not the hero.
 
 The traveler is.
+
