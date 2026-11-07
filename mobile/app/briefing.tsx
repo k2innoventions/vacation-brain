@@ -3,7 +3,13 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import ScreenShell from '@/components/ScreenShell';
 import { useTheme } from '@/hooks/useTheme';
-import { canGenerateBriefing, generateBriefing, getTripStatus } from '@/lib/briefing/generate';
+import {
+  canGenerateBriefing,
+  canPreviewBriefing,
+  generateBriefing,
+  generatePreviewBriefing,
+  getTripStatus,
+} from '@/lib/briefing/generate';
 import type { BriefingSection } from '@/lib/types';
 import { useTripContext } from '@/lib/trip-context';
 
@@ -47,7 +53,9 @@ export default function BriefingScreen() {
     );
   }
 
-  if (!canGenerateBriefing(trip, memories)) {
+  const isPreview = !canGenerateBriefing(trip, memories) && canPreviewBriefing(trip, memories);
+
+  if (!canGenerateBriefing(trip, memories) && !isPreview) {
     return (
       <ScreenShell title="Morning briefing">
         <EmptyState
@@ -63,7 +71,10 @@ export default function BriefingScreen() {
     );
   }
 
-  const briefing = generateBriefing(trip, memories);
+  const briefing = isPreview
+    ? generatePreviewBriefing(trip, memories)
+    : generateBriefing(trip, memories);
+  const title = isPreview ? 'Preview briefing' : 'Morning briefing';
 
   if (!briefing) {
     return (
@@ -78,15 +89,32 @@ export default function BriefingScreen() {
   }
 
   return (
-    <ScreenShell title="Morning briefing">
+    <ScreenShell title={title}>
       <ScrollView contentContainerStyle={styles.content}>
+        {isPreview ? (
+          <View style={[styles.previewNote, { borderColor: theme.textSecondary + '33' }]}>
+            <Text style={[styles.previewTitle, { color: theme.text }]}>
+              Preview — your trip starts in {tripStatus.daysUntil} day
+              {tripStatus.daysUntil === 1 ? '' : 's'}
+            </Text>
+            <Text style={[styles.previewBody, { color: theme.textSecondary }]}>
+              This shows how Day 1 could look using what you&apos;ve shared. Weather, park
+              hours, crowds, and showtimes are sample data, not a forecast. Reservations
+              aren&apos;t verified.
+            </Text>
+          </View>
+        ) : null}
+
         <Text style={[styles.dayLabel, { color: theme.textSecondary }]}>
-          Day {briefing.dayNumber} of {briefing.totalDays} · {trip.destination}
+          {isPreview ? 'Preview · ' : ''}Day {briefing.dayNumber} of {briefing.totalDays} ·{' '}
+          {trip.destination}
         </Text>
 
         {SECTIONS.map(({ key, label }) => (
           <View key={key} style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>{label}</Text>
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>
+              {isPreview && key === 'weather' ? 'Weather (sample)' : label}
+            </Text>
             <Text style={[styles.sectionBody, { color: theme.text }]}>
               {briefing.sections[key]}
             </Text>
@@ -139,6 +167,20 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 32,
     gap: 20,
+  },
+  previewNote: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    gap: 6,
+  },
+  previewTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  previewBody: {
+    fontSize: 14,
+    lineHeight: 20,
   },
   dayLabel: {
     fontSize: 14,

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import ScreenShell from '@/components/ScreenShell';
 import { useTheme } from '@/hooks/useTheme';
-import { canGenerateBriefing, getTripStatus } from '@/lib/briefing/generate';
+import { canGenerateBriefing, canPreviewBriefing, getTripStatus } from '@/lib/briefing/generate';
 import { useTripContext } from '@/lib/trip-context';
 
 function NavCard({
@@ -44,6 +44,7 @@ export default function HomeScreen() {
 
   const tripStatus = trip ? getTripStatus(trip) : null;
   const briefingReady = canGenerateBriefing(trip, memories);
+  const previewReady = !briefingReady && canPreviewBriefing(trip, memories);
 
   let statusLine = 'Set up your trip to get started.';
   if (trip && tripStatus) {
@@ -117,11 +118,13 @@ export default function HomeScreen() {
           onPress={() => router.push('/memory')}
         />
         <NavCard
-          title="Morning briefing"
+          title={previewReady ? 'Preview briefing' : 'Morning briefing'}
           subtitle={
             briefingReady
               ? 'View today\'s plan'
-              : !trip
+              : previewReady
+                ? 'See how Day 1 could look — sample conditions'
+                : !trip
                 ? 'Set up a trip first'
                 : memories.length === 0
                   ? 'Share a few things about your trip first'
@@ -130,7 +133,7 @@ export default function HomeScreen() {
                     : 'Unavailable for this trip window'
           }
           onPress={() => router.push('/briefing')}
-          disabled={!briefingReady}
+          disabled={!briefingReady && !previewReady}
         />
       </View>
     </ScreenShell>

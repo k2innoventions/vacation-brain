@@ -354,4 +354,14 @@ export function canGenerateBriefing(trip: Trip | null, memories: Memory[], today
   return isActive;
 }
 
+// A future trip can show a preview of its Day 1 briefing.
+export function canPreviewBriefing(trip: Trip | null, memories: Memory[], today = new Date()): boolean {
+  if (!trip || memories.length === 0) return false;
+  return getTripStatus(trip, today).daysUntil > 0;
+}
+
+export function generatePreviewBriefing(trip: Trip, memories: Memory[]): Briefing | null {
+  return generateBriefing(trip, memories, new Date(trip.startDate + 'T00:00:00'));
+}
+
 export { pickRelevantMemories };
