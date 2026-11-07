@@ -75,10 +75,31 @@ export default function HomeScreen() {
         <Text style={[styles.statusText, { color: theme.text }]}>{statusLine}</Text>
         {memories.length > 0 ? (
           <Text style={[styles.memoryCount, { color: theme.textSecondary }]}>
-            {memories.length} thing{memories.length === 1 ? '' : 's'} we know about your family
+            {memories.length} thing{memories.length === 1 ? '' : 's'} you&apos;ve shared
           </Text>
         ) : null}
       </View>
+
+      {memories.length === 0 && trip ? (
+        <Pressable
+          onPress={() => router.push('/memory')}
+          style={({ pressed }) => [
+            styles.ctaCard,
+            {
+              borderColor: theme.text + '33',
+              backgroundColor: theme.text + '0A',
+              opacity: pressed ? 0.85 : 1,
+            },
+          ]}
+        >
+          <Text style={[styles.ctaTitle, { color: theme.text }]}>
+            Help us understand your trip
+          </Text>
+          <Text style={[styles.ctaSubtitle, { color: theme.textSecondary }]}>
+            Tap what fits — we only keep what you choose.
+          </Text>
+        </Pressable>
+      ) : null}
 
       <View style={styles.navList}>
         <NavCard
@@ -90,8 +111,8 @@ export default function HomeScreen() {
           title="What we know"
           subtitle={
             memories.length > 0
-              ? `${memories.length} memor${memories.length === 1 ? 'y' : 'ies'} saved`
-              : 'Tell us what matters to your family'
+              ? `${memories.length} thing${memories.length === 1 ? '' : 's'} you've shared`
+              : 'Tap what fits for your trip'
           }
           onPress={() => router.push('/memory')}
         />
@@ -103,7 +124,7 @@ export default function HomeScreen() {
               : !trip
                 ? 'Set up a trip first'
                 : memories.length === 0
-                  ? 'Add at least one memory first'
+                  ? 'Share a few things about your trip first'
                   : tripStatus && tripStatus.daysUntil > 0
                     ? 'Available once your trip starts'
                     : 'Unavailable for this trip window'
@@ -143,6 +164,21 @@ const styles = StyleSheet.create({
   memoryCount: {
     fontSize: 14,
     marginTop: 8,
+  },
+  ctaCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  ctaTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  ctaSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
   },
   navList: {
     gap: 12,

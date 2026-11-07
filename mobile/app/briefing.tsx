@@ -25,7 +25,7 @@ export default function BriefingScreen() {
     return (
       <ScreenShell title="Morning briefing">
         <EmptyState
-          message="Set up your trip first, then add what we know about your family."
+          message="Set up your trip first, then tell us what fits your group."
           actionLabel="Go to trip setup"
           onAction={() => router.push('/trip')}
         />
@@ -39,8 +39,8 @@ export default function BriefingScreen() {
     return (
       <ScreenShell title="Morning briefing">
         <EmptyState
-          message="Add at least one memory so the briefing can reflect what matters to your family."
-          actionLabel="Go to what we know"
+          message="Tap a few options about your trip so the briefing can reflect what you've shared."
+          actionLabel="About your trip"
           onAction={() => router.push('/memory')}
         />
       </ScreenShell>

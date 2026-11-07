@@ -7,7 +7,8 @@ type TripContextValue = {
   trip: Trip | null;
   memories: Memory[];
   setTrip: (trip: Trip) => void;
-  addMemory: (content: string) => boolean;
+  toggleChipMemory: (chipId: string, content: string) => boolean;
+  addCustomMemory: (content: string) => boolean;
   updateMemory: (id: string, content: string) => void;
   deleteMemory: (id: string) => void;
   memoryCount: number;
@@ -28,37 +29,62 @@ export function TripProvider({ children }: { children: ReactNode }) {
     setTripState(nextTrip);
   }, []);
 
-  const addMemory = useCallback((content: string): boolean => {
+  const toggleChipMemory = useCallback((chipId: string, content: string): boolean => {
     const trimmed = content.trim().slice(0, MEMORY_MAX_LENGTH);
     if (!trimmed) return false;
 
-    let didAdd = false;
-    setMemories((current) => {
-      if (current.length >= MEMORY_MAX_COUNT) {
-        return current;
-      }
-      didAdd = true;
-      return [
-        {
-          id: createId(),
-          content: trimmed,
-          createdAt: new Date().toISOString(),
-        },
-        ...current,
-      ];
-    });
+    // Decide from current state before calling setMemories, so the
+    // return value is reliable (updater functions may run later).
+    if (memories.some((memory) => memory.chipId === chipId)) {
+      setMemories(memories.filter((memory) => memory.chipId !== chipId));
+      return true;
+    }
 
-    return didAdd;
-  }, []);
+    if (memories.length >= MEMORY_MAX_COUNT) return false;
+
+    setMemories([
+      {
+        id: createId(),
+        content: trimmed,
+        createdAt: new Date().toISOString(),
+        chipId,
+      },
+      ...memories,
+    ]);
+    return true;
+  }, [memories]);
+
+  const addCustomMemory = useCallback((content: string): boolean => {
+    const trimmed = content.trim().slice(0, MEMORY_MAX_LENGTH);
+    if (!trimmed) return false;
+
+    if (memories.length >= MEMORY_MAX_COUNT) return false;
+
+    setMemories([
+      {
+        id: createId(),
+        content: trimmed,
+        createdAt: new Date().toISOString(),
+      },
+      ...memories,
+    ]);
+    return true;
+  }, [memories]);
 
   const updateMemory = useCallback((id: string, content: string) => {
     const trimmed = content.trim().slice(0, MEMORY_MAX_LENGTH);
     if (!trimmed) return;
 
     setMemories((current) =>
-      current.map((memory) =>
-        memory.id === id ? { ...memory, content: trimmed } : memory,
-      ),
+      current.map((memory) => {
+        if (memory.id !== id) return memory;
+        const edited = trimmed !== memory.content;
+        return {
+          ...memory,
+          content: trimmed,
+          chipId: edited ? undefined : memory.chipId,
+        };
+      }),
     );
   }, []);
 
@@ -71,13 +97,14 @@ export function TripProvider({ children }: { children: ReactNode }) {
       trip,
       memories,
       setTrip,
-      addMemory,
+      toggleChipMemory,
+      addCustomMemory,
       updateMemory,
       deleteMemory,
       memoryCount: memories.length,
       isAtMemoryCap: memories.length >= MEMORY_MAX_COUNT,
     }),
-    [trip, memories, setTrip, addMemory, updateMemory, deleteMemory],
+    [trip, memories, setTrip, toggleChipMemory, addCustomMemory, updateMemory, deleteMemory],
   );
 
   return <TripContext.Provider value={value}>{children}</TripContext.Provider>;
