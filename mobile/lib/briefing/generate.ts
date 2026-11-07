@@ -1,9 +1,15 @@
 import { dayFixture } from '@/lib/fixtures/day';
 import type { Briefing, Memory, Trip } from '@/lib/types';
 
+// Whole calendar days from a to b, ignoring time of day and daylight-saving shifts.
+function calendarDaysBetween(a: Date, b: Date): number {
+  const utcA = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  const utcB = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((utcB - utcA) / (1000 * 60 * 60 * 24));
+}
+
 function daysBetween(start: Date, end: Date): number {
-  const ms = end.getTime() - start.getTime();
-  return Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)) + 1);
+  return Math.max(1, calendarDaysBetween(start, end) + 1);
 }
 
 function tripDayNumber(trip: Trip, today = new Date()): number {
@@ -13,7 +19,7 @@ function tripDayNumber(trip: Trip, today = new Date()): number {
 
   if (today < start) return 0;
 
-  const dayNumber = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const dayNumber = calendarDaysBetween(start, today) + 1;
   return Math.min(Math.max(dayNumber, 1), totalDays);
 }
 
@@ -26,7 +32,7 @@ function totalTripDays(trip: Trip): number {
 function daysUntilTrip(trip: Trip, today = new Date()): number {
   const start = new Date(trip.startDate + 'T00:00:00');
   if (today >= start) return 0;
-  return Math.ceil((start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return calendarDaysBetween(today, start);
 }
 
 function matchesAny(text: string, keywords: string[]): boolean {
@@ -297,8 +303,9 @@ export function getTripStatus(trip: Trip, today = new Date()) {
   const dayNumber = tripDayNumber(trip, today);
   const totalDays = totalTripDays(trip);
   const daysUntil = daysUntilTrip(trip, today);
-  const isActive = dayNumber > 0;
   const isPast = today > new Date(trip.endDate + 'T23:59:59');
+  // dayNumber is capped at the last day, so exclude ended trips explicitly.
+  const isActive = dayNumber > 0 && !isPast;
 
   return { dayNumber, totalDays, daysUntil, isActive, isPast };
 }
