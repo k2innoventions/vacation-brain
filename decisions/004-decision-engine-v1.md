@@ -1,9 +1,9 @@
 # Decision 004 — Decision Engine v1
 
-**Status:** Proposed (product decisions resolved 2026-11-07; revised after PR #6 review; technical decisions open — see spec §10)
+**Status:** Proposed (product decisions resolved 2026-11-07; revised after PR #6 review; T1, T3, T14 resolved; remaining technical decisions in spec §10)
 **Date:** 2026-11-07
 **Deciders:** Founder, Engineering
-**Related:** [001](001-v1-memory-scope.md), [002](002-memory-ownership.md), [003](003-canonical-app-location.md)
+**Related:** [001](001-v1-memory-scope.md), [002](002-memory-ownership.md), [003](003-canonical-app-location.md), [005](005-user-initiated-memory-saves.md) (proposed)
 **Specification:** [docs/product/04-decision-engine-v1-spec.md](../docs/product/04-decision-engine-v1-spec.md)
 
 ---
@@ -26,8 +26,8 @@ and get help that's practical where they're ready and inspiring where
 they're not.
 
 ADR-001 forbids automatic memory inference. A conversational planner is
-exactly where inference would creep in. This record has to show how the
-two coexist.
+exactly where inference would creep in. This record shows how the two
+coexist, and relies on ADR-005 (proposed) for one narrow change.
 
 ## Decision
 
@@ -37,139 +37,144 @@ travel**.
 
 ### Product decisions (resolved)
 
-1. **Dream first, plan second, decided by intent and readiness.**
-   Whether the engine inspires or narrows depends on what the traveler
-   is asking for and how ready they are to decide, **per decision**
-   (destination, dates, lodging, activities…). Merely mentioning a
-   constraint doesn't make someone ready to decide. One conversation,
-   and even one reply, can **mix modes**: practical about dates that
-   are nearly settled, inspiring about activities that are wide open.
+1. **Dream first, plan second, decided by intent and readiness**, per
+   decision (destination, dates, party, where to stay, what to do,
+   pace). Constraints are not commitments. One reply can mix modes.
+   **The readiness states are internal and never shown to travelers.**
 2. **General leisure travel.** Nothing in the engine is Disney-specific.
 3. **Exploring is not committing.** Trip facts are understood
    conversationally and never re-asked. Ideas the traveler is
-   *considering* are kept without interruption. Only a **commitment**
-   (the traveler deciding) changes a decided trip fact, and the
-   confirmation for that is lightweight: an inline acknowledgement with
-   undo, or a single tappable option the traveler can ignore. There are
-   no repeated "save this?" prompts.
+   considering are kept without interruption. **Only an explicit
+   commitment is a decision.** Enthusiasm or casual agreement ("love
+   it!", "sounds great") is never turned into a saved commitment.
+   Confirmation is lightweight: an inline acknowledgement with undo, or
+   one ignorable tap option. There are no repeated "save this?" prompts.
 4. **Three separate layers of context:** conversation context, trip
-   state, and Family Memory. They are stored, scoped, and governed
-   separately. ADR-001 applies in full.
-5. **Explore without signing in.** Anonymous explorations persist
-   locally on the device across app restarts, with a clear delete
-   option. Sign-up offers to transfer the exploration into the account.
-6. **Family Memory is account-only (resolves T3).** Anonymous travelers
-   have conversation context and trip state, but **no persistent Family
-   Memory**. Family Memory belongs to the account (ADR-002) and is
-   **explicitly authored after sign-up**, through ADR-001's two write
-   paths. Transfer never creates Family Memory.
-7. **OpenAI, server-side,** with configurable model selection. Keys
-   never ship in the app.
-8. **Research architecture now, live research incrementally.** Every
-   claim the traveler sees is an **inspiration**, an **estimate**, or a
-   **verified fact**. Source attribution alone is not verification.
-   A claim is verified only when a source **supports that specific
-   claim**, is **fresh** for the trip's dates, is **reliable** enough
-   for the kind of claim, and any conflict or gap is stated as
-   uncertainty.
-9. **Privacy explained, sharing minimized.** Only what the current turn
-   needs is sent to the model. No personal or family details go into
-   research queries.
-10. **Account conversations are retained until the user deletes them**,
-    under documented safeguards.
-11. **Budget comes up naturally** when relevant, never automatically as
-    the first question.
-12. **One meaningful question at a time.**
-13. **No internal engineering terms in the UI.**
+   state, and Family Memory.
+5. **Explore without signing in.** Anonymous explorations persist on the
+   device across restarts, with a clear delete option. Sign-up offers to
+   transfer the exploration into the account.
+6. **Family Memory is account-only (T3).** Anonymous travelers have
+   conversation and trip context, but no Family Memory. Family Memory is
+   explicitly authored after sign-up. Transfer never creates Family
+   Memory.
+7. **What's shared in a trip stays in that trip (T14).** It stays there
+   unless the traveler explicitly chooses "Save for future trips."
+   Saving is obvious, easy, and delightful, through a quiet contextual
+   action on existing trip details plus an easy-to-reach Family Memory
+   area. It is never automatic, never suggested by the AI, never
+   repeated, and never interrupts. This requires the narrow ADR-001
+   amendment proposed in **ADR-005**. Until that's accepted, the action
+   does not ship.
+8. **OpenAI, server-side,** with configurable model selection.
+9. **Research architecture now, live research incrementally,** with
+   claim-level verification: relevance, freshness, reliability, and
+   stated uncertainty. Every claim is an inspiration, an estimate, or a
+   verified fact.
+10. **Privacy explained, sharing minimized,** under three distinct
+    policies: what's **collected**, what's **retained** (locally or in
+    the account), and what's **transmitted** to OpenAI or research
+    providers. **Names and nicknames may be kept for personalization
+    but are not automatically sent to external AI services.** Sensitive
+    family details, especially medical ones, are minimized.
+11. **Account conversations are retained until the user deletes them.**
+12. **Budget comes up naturally,** never as the first question.
+13. **One meaningful question at a time.**
+14. **No internal engineering terms in the UI.**
+
+### Storage decision (T1, resolved)
+
+- Anonymous explorations use **`@react-native-async-storage/async-storage`**
+  behind a storage abstraction, on iOS, Android, and web.
+- Stored documents are **versioned**, and large conversations are
+  **chunked** to stay within platform limits.
+- Exploration data is **excluded from Android backups**.
+- **No application-level encryption** for ordinary trip-planning
+  information in v1. Residual risks are documented in the spec (§3.6):
+  iOS backups, web shared devices, and readable browser storage.
+- Clear deletion controls, plus a **shared-device notice on web**.
+- The package is approved but **not yet installed**. It is installed in
+  M1.
 
 ### Architectural decisions
 
 - **Deterministic shell, model in the middle.** Code assembles context,
-  tracks decision readiness, validates output, verifies claims, and
-  persists results. The model drafts replies and suggestions, and
-  reports what it read of the traveler's intent. Guardrails are code.
-- **Two storage modes.** Anonymous explorations live on the device
-  (mechanism: T1). Account data lives in Supabase Postgres with RLS,
-  scoped to the account.
-- **The traveler decides.** The engine suggests. It never books and
-  never acts on the traveler's behalf.
+  tracks readiness, applies commitment rules, verifies claims,
+  pseudonymizes names, validates output, and persists results.
+- **Two storage modes:** on-device (anonymous) and Supabase Postgres
+  with RLS (account).
+- **The traveler decides.** The engine suggests. It never books.
 
 ### Naming
 
-ADR-001 says "No 'Engine'" for **memory**. That stays true. "Decision
-Engine" is the internal name of the reasoning layer only. It contains no
-memory lifecycle, and the word never appears in the UI.
+"Decision Engine" is the internal name of the reasoning layer. It
+contains no memory lifecycle (ADR-001's "No Engine" for memory still
+holds), and the word never appears in the UI.
 
 ## Reconciliation with ADR-001
 
-ADR-001 stays in force unchanged. It is not superseded. The engine is a
-**reader** of Family Memory, never a writer.
+ADR-001 stays in force **unchanged** unless and until ADR-005 is
+accepted. The engine is a **reader** of Family Memory, never a writer.
 
 ### The three layers
 
 | Layer | What it holds | Scope | Who writes it | Anonymous? | Lifetime |
 | --- | --- | --- | --- | --- | --- |
-| **Conversation context** | What was said in one planning conversation | One conversation | Traveler and engine, as messages | Yes, on the device | Until deleted |
-| **Trip state** | Facts about one trip, each *considering* or *decided* | One trip | *Considering:* recorded by the engine as the traveler explores. *Decided:* only on the traveler's commitment | Yes, on the device | Until the trip is deleted |
-| **Family Memory** | Durable, user-authored statements | The account (ADR-002) | **Only the traveler**, through ADR-001's two write paths | **No** | Until the user edits or deletes it |
+| **Conversation context** | What was said in one planning conversation | One conversation | Traveler and engine, as messages | Yes, on device | Until deleted |
+| **Trip state** | Trip facts (considering or decided) and trip details (the group's preferences, needs, and traditions in the traveler's words) | One trip | Engine records details and considering facts; decided facts only on explicit commitment | Yes, on device | Until the trip is deleted |
+| **Family Memory** | Durable statements authored by the traveler | Account (ADR-002) | **Only the traveler**, through ADR-001's write paths (plus "Save for future trips" if ADR-005 is accepted) | **No** | Until edited or deleted |
 
 ### Rules
 
 | ADR-001 rule | How the engine complies |
 | --- | --- |
-| Two write paths only | The engine has **no write access** to memory. The server role has read-only access to that table, and a test asserts it. |
-| The app never suggests a memory | The engine never offers to remember something and never drafts memory text. Its output has no field for memory, and the validator rejects "I'll remember that"-style language. Inviting an anonymous traveler to sign up is allowed, but the invitation never proposes specific memory content. |
-| Chat never writes to memory | Conversation writes go to conversation storage. Trip facts go to trip state. |
-| No inference | Accept/dismiss and commit/undo signals are logged as append-only events. Nothing reads them to shape advice in v1. |
-| No hidden profile | The engine sees only what the traveler can see. No hidden summaries, embeddings, or cross-trip profiles. Each generation stores a snapshot of exactly what the model saw (account mode). |
-| Deleted means gone | Deleting a memory, conversation, or exploration removes it from all future model inputs. |
+| Limited write paths | The engine has **no write access** to memory (read-only server role, tested). "Save for future trips" is a traveler action handled by the app, not the engine, and exists only if ADR-005 is accepted. |
+| The app never suggests a memory | The AI never proposes memories, never offers to remember, and never selects what's worth saving. The validator rejects such language. Save actions appear by a fixed rule on every eligible detail (ADR-005), never chosen by the AI. |
+| Chat never writes to memory | Conversation goes to conversation storage. Trip details go to trip state. |
+| No inference | Signals are logged append-only. Nothing reads them to shape advice in v1. |
+| No hidden profile | The engine sees only what the traveler can see. No hidden summaries, embeddings, or cross-trip profiles. |
+| Deleted means gone | Deletes remove data from all future model inputs. |
 
-### Why understanding trip facts is not inference
+### Why understanding trip details is not inference
 
 The Memory v1 spec classifies party, dates, and reservations as **trip
-context, not memory**. Recording that a family is *considering* Dec
-27–31, or *decided* on Gatlinburg, inside that trip is planning, not
-learning. Trip facts stay inside their trip, are never promoted into
-Family Memory, and never shape another trip.
-
-**Transfer** moves an anonymous exploration's conversation and trip
-into the account, **as conversation and trip data only**. After
-sign-up, Family Memory starts empty and is filled only by the traveler.
-
-Any future feature that learns across trips or suggests memories
-requires a new ADR superseding 001.
+context, not memory**. "My son loves waterslides" is recorded as a
+**trip detail** of this trip, in the traveler's words. It's used for
+this trip only and never shapes another trip. It reaches Family Memory
+only if the traveler taps "Save for future trips" and approves the text
+(ADR-005).
 
 ## Deferred (not removed)
 
-- Moving the morning briefing onto the engine (later milestone)
+- Moving the morning briefing onto the engine
 - In-trip real-time suggestions
 - Bookings, inventory prices, affiliate links
-- Learning from accepted or dismissed suggestions (requires superseding ADR-001)
+- Learning from behavior or suggesting memories (requires superseding ADR-001)
 - Multi-destination routing
 - Shared trips across accounts (ADR-002)
+- Application-level encryption of local data (revisit if local data grows more sensitive)
 
 ## How we'll know it worked
 
 - Testers never feel interrupted by save prompts, and never find a
-  decision recorded that they didn't make.
+  decision or a memory recorded that they didn't make.
+- Families save useful preferences for future trips without being asked.
 - Replies feel inspiring where the traveler is open and practical where
-  they're ready, including within the same reply.
-- Every claim shown as verified is supported by the cited source for
-  that exact claim, current for the trip's dates, and from an
-  appropriate publisher. Spot audits find no "verified" label on an
-  unsupported claim.
+  they're ready.
+- Spot audits find no verified label on an unsupported claim.
 - Zero memory writes from engine code paths. No anonymous Family Memory.
-- Anonymous explorations survive app restarts. Transfer loses nothing
-  and duplicates nothing.
-- Testers are never asked for something they already said.
+- No names or nicknames in model inputs or research queries.
+- Anonymous explorations survive restarts. Transfer loses nothing and
+  duplicates nothing.
 
 ## Revisit when
 
 - We want the engine to learn across trips or suggest memories
-  (supersede ADR-001 first).
+  (supersede ADR-001).
+- ADR-005 is rejected (T14 then falls back to the Family Memory area
+  only).
+- Local data starts holding information that warrants encryption.
 - Claim verification cost or latency makes the staged rollout
   impractical.
-- Anonymous travelers strongly want lasting preferences before signing
-  up (revisit decision 6 with a privacy review).
 - In-trip use becomes the main surface.
 - Server code needs to share code with `mobile/` (ADR-003 record).

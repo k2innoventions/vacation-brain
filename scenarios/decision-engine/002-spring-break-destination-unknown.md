@@ -2,17 +2,19 @@
 
 ## Purpose
 
-Validate **dream first** when the traveler is truly open, a shift into
-narrowing as intent changes (still exploring, not committing), budget
-raised naturally, lightweight commitment, claim-level verification with
-stale and conflicting sources, anonymous restoration and deletion, and
-transfer into an account with no Family Memory carried over.
+Validate **dream first** when the traveler is open, and narrowing as
+intent changes, where enthusiasm is not commitment. Also validates
+budget raised naturally, trip details that stay in their trip, the save
+action (ADR-005, proposed) used selectively by the traveler, claim-level
+verification with stale and conflicting sources, the web shared-device
+notice, anonymous restoration and deletion, and transfer.
 
 ---
 
 ## Starting State
 
-- Not signed in. No saved trip. No Family Memory (anonymous).
+- Not signed in, **on the web**. No saved trip. No Family Memory
+  (anonymous).
 - Research at stage R0 unless noted.
 
 ## Source Fixtures (test data, not real-world claims; used in Phase E)
@@ -28,72 +30,66 @@ No price sources exist.
 
 ---
 
-## Phase A — Dreaming (truly open)
+## Phase A — Dreaming (truly open, on the web)
+
+When the exploration starts, the app shows the **shared-device notice**
+once ("This plan is saved in this browser…"), without blocking typing.
 
 **Traveler:** "Spring Break with my teens. No idea where. Ideas?"
 
-Readiness: everything **open**.
-
 Expected:
 
-- Inspires: **≤3 contrasting ideas** (e.g. a beach town, a mountain
-  town, a city weekend), each with a short, vivid reason for a parent
-  and teens. Labeled as **inspiration**; any factual aside is an
-  **estimate**.
-- Nothing is recorded as decided. Nothing prompts.
-- **No budget question.** At most one light, open question about what
-  sounds appealing.
+- Inspires: **≤3 contrasting ideas**, each with a vivid reason, labeled
+  as inspiration.
+- Nothing decided, nothing prompted, **no budget question**, and no
+  offer to save anything.
 
-## Phase B — Exploring with constraints (not committing)
+## Phase B — Exploring with constraints
 
 **Traveler:** "Ooh, my 16-year-old really wants a beach. We're in
 Charlotte, the kids are 13 and 16, and I'd rather not drive more than
-about 6 hours. Break is March 15–19, but we could leave Friday the
-12th."
+about 6 hours. We want somewhere relaxed, not a party scene. Break is
+March 15–19, but we could leave Friday the 12th."
 
-Readiness: destination moves **open → leaning** (a beach, but which
-one?), party **decided**, dates **considering** (window), drive limit
-known.
-
-Expected:
-
-- Narrows **within** the beach idea: **≤3 beach destinations** within
-  the drive limit, each with a reason tied to what was said. Drive times
-  are **estimates**.
-- Shortlist and date window are recorded as **considering**, with **no
-  confirmation prompts**. Party may be acknowledged inline once.
-- Asks nothing already answered.
-
-**Traveler:** "These sound nice."
+Internal readiness (never shown): destination **leaning** (a beach,
+which one?), party **decided**, dates **leaning**.
 
 Expected:
 
-- Vague agreement, not a commitment. Nothing becomes decided. No
-  prompt.
+- Narrows within the beach idea: **≤3 beach destinations** within the
+  drive limit, with reasons. Drive times are estimates.
+- Shortlist and window recorded as considering, **without prompts**.
+  The party is acknowledged inline once.
+- **Trip details:**
+  - "16-year-old really wants a beach" (`preference`);
+  - "relaxed, not a party scene" (`preference`).
+
+  Each shows a quiet "Save for future trips" action on the trip screen,
+  never in the conversation.
+
+**Traveler:** "Yes!! These all sound perfect!"
+
+Expected:
+
+- Enthusiasm, **not commitment.** Nothing becomes decided.
 
 **Traveler:** "We need to keep this pretty affordable."
 
 Expected:
 
-- Budget enters because the traveler raised it. It isn't asked
-  separately.
-- Says which options tend to be more affordable **as estimates** only.
-  No prices or "deals" as fact. Suggests checking lodging for the exact
-  dates.
-- No memory proposal. "Affordable" stays conversation context (and trip
-  context, if recorded).
+- Budget enters because the traveler raised it. Affordability is
+  covered only as **estimates**. No prices or deals as fact.
+- No memory proposal.
 
-## Phase C — App restart (anonymous restoration)
+## Phase C — Restart (anonymous restoration)
 
-The traveler closes and reopens the app, still not signed in.
+The traveler closes and reopens the browser tab.
 
 Expected:
 
-- The conversation, the shortlist and window as considering, and the
-  decided party are restored.
-- The next turn knows the ages, the drive limit, the beach preference,
-  and the budget concern, and asks for none of them.
-- No Family Memory appears.
+- The conversation, the shortlist and window (considering), the decided
+  party, and all trip details are restored. Nothing is re-asked.
+- The shared-device notice and the delete control are available.
 
 ## Phase D1 — Delete (run A)
 
@@ -101,80 +97,86 @@ The traveler taps "Delete this exploration" and confirms.
 
 Expected:
 
-- All local trip and conversation data is gone. The next launch starts
-  fresh with no trace of the exploration.
+- All stored data for the exploration (including message chunks and the
+  index) is gone. Reloading starts fresh.
 
-## Phase D2 — Sign-up and transfer (run B, alternative to D1)
+## Phase D2 — Sign-up, transfer, and a selective save (run B)
 
 From the end of Phase C, the traveler creates an account and accepts
 the transfer.
 
 Expected:
 
-- Exactly one trip (shortlist and window as considering, party decided)
-  and the full conversation. Nothing is lost and nothing is duplicated.
-- **Family Memory is empty.** Beach preference and budget concern are
-  not in it.
+- Exactly one trip, its details, and the full conversation. Nothing
+  lost, nothing duplicated. **Family Memory is empty.**
 
-## Phase E — Choosing (account, sources S1–S4 available)
+The traveler then taps **"Save for future trips"** on "relaxed, not a
+party scene," edits the text to "We like relaxed places, not party
+scenes," and taps **Save**.
+
+Expected:
+
+- One Family Memory entry, in the traveler's edited words.
+- "16-year-old really wants a beach" is **not** saved. It stays a trip
+  detail of this trip only.
+- No AI message reacts by suggesting other things to save.
+
+## Phase E — Choosing (account, S1–S4 available)
 
 **Traveler:** "Tell me about Beach Town B. Is it a party place? Anything
 fun happening while we're there?"
 
 Expected:
 
-- **Crowds:** S1 and S2 are both reliable editorial sources but point
-  different ways. The verdict is **conflicting**. The engine says so
-  plainly ("It's had a spring break party reputation, though a local
-  report says crowds were smaller last year; hard to predict for
-  yours"). It's **not** shown as verified in either direction.
-- **Water:** "typically cool for swimming in mid-March" is a **verified
-  fact** as a seasonal pattern (S3: official, current), with no exact
-  temperatures invented.
-- **Kite festival:** S4 is from 2023 and is a blog. That's stale and
-  insufficient for an event date, so this **can't be verified**. At
-  most: "There's been a kite festival in past years; worth checking
-  whether it's on this year."
+- **Crowds:** S1 and S2 conflict. Shown as **conflicting** in plain
+  language, not verified. The saved Family Memory about relaxed places
+  is cited naturally.
+- **Water:** "typically cool for swimming in mid-March" is **verified**
+  as a seasonal pattern (S3).
+- **Kite festival:** S4 is stale and a blog, so it's **not verified**.
+  At most: "There's been one in past years; worth checking for this
+  year."
 
 **Traveler:** "Let's go with Beach Town B, leaving Saturday the 13th and
 back the 19th."
 
 Expected:
 
-- Destination and dates become **decided** from the traveler's words.
-  **One** combined inline acknowledgement with undo. **No confirmation
-  question.**
+- Destination and dates are decided from the explicit commitment, with
+  **one** combined inline acknowledgement and undo. No question.
 
 ---
 
 ## Things That Should NOT Happen
 
-- Practical or budget questions before any inspiration in Phase A.
-- Treating "beach" or "These sound nice" as choosing a destination.
-- Confirmation prompts for considering-state changes (shortlist, window).
-- A confirmation *question* after an explicit decision, or separate
-  acknowledgements for destination and dates.
+- Practical or budget questions before inspiration in Phase A.
+- "Yes!! These all sound perfect!" or "beach" creating a decided
+  destination.
+- Confirmation prompts for considering-state changes. A question after
+  an explicit decision.
 - More than 3 ideas or destinations at once. Options beyond the drive
-  limit (unless flying comes up).
-- Prices, availability, or "cheap" presented as fact.
-- Re-asking for ages, home city, drive limit, dates, beach preference,
-  or budget.
-- Any memory proposal. Any Family Memory before sign-up, or created by
-  the engine or the transfer.
-- A **verified** label on the crowd claim (conflicting), the festival
-  date (stale and insufficient), or any prediction.
+  limit.
+- Prices or "cheap" as fact. Re-asking anything provided.
+- **AI-generated memory proposals** of any kind. Save actions appearing
+  in the conversation. Anything saved without the traveler tapping Save.
+- Unsaved trip details (the beach preference) influencing a different
+  trip.
+- A verified label on the crowd claim, the festival date, or any
+  prediction.
 - Any trace of the exploration after deletion (run A).
-- Internal terms in the UI. Names, emails, or account identifiers in
-  model inputs. Family details in research queries.
+- The shared-device notice missing on web, or blocking the traveler.
+- Readiness states or internal terms in the UI. Family details in
+  research queries.
 
 ## Pass / Fail Criteria
 
-1. Phase A inspires first: ≤3 contrasting ideas, labeled as inspiration, with no budget question. **Required.**
-2. Phase B narrows within the beach idea while the destination stays leaning. Shortlist and window are considering, without prompts. **Required.**
-3. Vague agreement never creates a decided fact. The explicit decision creates one combined acknowledgement with undo and no question. **Required.**
+1. Phase A inspires first: ≤3 ideas, no budget question. **Required.**
+2. Phase B narrows within the beach idea while the destination stays leaning. Considering-state changes don't prompt. **Required.**
+3. Enthusiasm never creates a decided fact. An explicit decision creates one combined acknowledgement and no question. **Required.**
 4. ≤1 question per turn. Nothing provided is asked again. **Required.**
-5. Budget is handled when the traveler raises it, as estimates only. **Required.**
-6. Restart restores everything. Delete (run A) removes all local data. **Required.**
-7. Transfer (run B) yields exactly one trip and conversation, and Family Memory is empty. No Family Memory while anonymous. **Required.**
-8. Verification: crowds shown as conflicting; water verified as a seasonal pattern; festival date not verified (stale and unreliable). **Required.**
-9. No internal terms in user-facing text. Minimization rules are met. **Required.**
+5. Budget is handled when raised, as estimates only. **Required.**
+6. On web: the shared-device notice is shown once, without blocking. Restart restores. Delete (run A) leaves nothing. **Required.**
+7. Transfer (run B): exactly one trip, and Family Memory is empty until the traveler saves. **Required.**
+8. The selective save stores only the traveler's edited words. The unsaved detail stays trip-only. No AI follow-up suggestions. *(Required if ADR-005 is accepted.)*
+9. Verification: crowds conflicting; water verified as a pattern; festival not verified. **Required.**
+10. No AI output proposes a memory. No internal terms or readiness states in the UI. **Required.**
