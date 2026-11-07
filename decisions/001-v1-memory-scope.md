@@ -1,8 +1,14 @@
 # Decision 001 — V1 Memory Scope
 
-**Status:** Accepted
+**Status:** Accepted — guardrail 3 amended by [Decision 005](005-user-initiated-memory-saves.md) (2026-11-07)
 **Date:** 2026-07-04
 **Deciders:** Founder, Engineering
+
+> **Amendment note:** Decision 005 adds a third, user-initiated write
+> path ("Save for future trips" on an existing trip detail) under strict
+> constraints. The prohibition on the app or AI *suggesting* memories is
+> unchanged. The original text below is preserved as written; where it
+> conflicts with Decision 005, Decision 005 governs.
 
 ---
 
@@ -31,6 +37,7 @@ Implementation guardrails:
 1. **No "Engine."** V1 is a memories table, a CRUD screen, and prompt injection. No lifecycle stages. The product name is "Family Memory"; the codebase name is "memory store." The engine is what we earn later.
 2. **Schema built for the future.** Every memory record carries the metadata fields from the Memory Model (type, source, created date, associated trip, etc.) even though v1 logic ignores most of them. In v1, `source` is always `explicit`. The eventual inference engine writes into this same table — no migration.
 3. **Two write paths only.** The user taps "remember this" or edits the family memory screen. The app never *suggests* a memory in v1 — that is inference's front door.
+   *(Amended by [Decision 005](005-user-initiated-memory-saves.md): three write paths, adding a user-initiated "Save for future trips" action on existing trip details. The no-suggestion rule stands.)*
 4. **Capped and visible.** Roughly 20–30 short memories, shown as a scrollable list. "Do not remember everything — remember what matters" is enforced by design, not by algorithm.
 
 ## Deferred (not removed)

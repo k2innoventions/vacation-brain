@@ -1,8 +1,8 @@
 # Decision Engine v1 — Implementation Specification
 
-**Version:** 0.4 (T1, T3, T14 resolved; ADR-005 proposed; remaining technical decisions open)
+**Version:** 0.5 (all product decisions resolved; ADR-005 accepted; remaining technical decisions open)
 **Status:** Proposed
-**Governing decisions:** [ADR-004](../../decisions/004-decision-engine-v1.md) (proposed), [ADR-005](../../decisions/005-user-initiated-memory-saves.md) (proposed), [ADR-001](../../decisions/001-v1-memory-scope.md), [ADR-002](../../decisions/002-memory-ownership.md), [ADR-003](../../decisions/003-canonical-app-location.md)
+**Governing decisions:** [ADR-004](../../decisions/004-decision-engine-v1.md) (proposed), [ADR-005](../../decisions/005-user-initiated-memory-saves.md) (accepted), [ADR-001](../../decisions/001-v1-memory-scope.md) (as amended), [Memory v1 spec](03-memory-v1-spec.md) (v1.1), [ADR-002](../../decisions/002-memory-ownership.md), [ADR-003](../../decisions/003-canonical-app-location.md)
 **Implements:** blueprint layer 4 (Reasoning Engine), `intelligence/01-decision-framework.md`
 **Acceptance scenarios:** `scenarios/decision-engine/`
 
@@ -150,7 +150,7 @@ type TripDetail = {
   kind: 'preference' | 'need' | 'tradition' | 'party' | 'logistics';
   display: string;           // shown on the trip screen
   travelerWords: string;     // the traveler's original quote, kept verbatim
-  personRef?: string;        // local reference to a named person (§5.4), never sent to external AI
+  personRole?: string;       // trip-scoped role reference, e.g. "child, 9" (§5.4); names never sent to external AI
   savedMemoryId?: string;    // set if the traveler saved it to Family Memory
 };
 ```
@@ -165,7 +165,7 @@ type TripDetail = {
 - Shown on the trip screen in a calm "about your group" area. Editable
   and deletable.
 
-### 2.3 Saving to Family Memory (T14; requires ADR-005)
+### 2.3 Saving to Family Memory (T14; ADR-005, accepted)
 
 **What's shared in a trip stays in that trip, unless the traveler
 chooses to save it for future trips.**
@@ -173,13 +173,18 @@ chooses to save it for future trips.**
 **The contextual save action.**
 
 - Every trip detail of kind `preference`, `need`, or `tradition` that the
-  **traveler stated** shows a small, quiet **"Save for future trips"**
+  **traveler stated** shows a visible, easy-to-discover **"Save for future trips"**
   action on the trip screen.
 - **Eligibility is a fixed rule** (ADR-005). The AI sorts details into
   kinds for planning, but has no signal for "worth remembering" and
   can't add or hide the action on any single detail.
+- **Visible, consistent placement.** The action sits in the same place
+  on every eligible detail, so travelers learn where it is. It's not
+  hidden in menus or settings.
 - **Never in the conversation stream.** No banners, badges, pop-ups,
   animations, or reminders. Always available, never pushed.
+- **Health details** follow the same rule. They're never promoted
+  automatically, only through this explicit tap and Save.
 
 **Saving (signed in).**
 
@@ -221,10 +226,6 @@ chooses to save it for future trips.**
 - the AI proposing, drafting, ranking, or highlighting memories;
 - conversation text like "Want me to remember that?";
 - repeated or timed prompts.
-
-If ADR-005 is **not** accepted, the contextual action does not ship,
-and saving happens only through the Family Memory area and "Remember
-this" (ADR-001 as written).
 
 ### 2.4 Trip shape
 
@@ -289,8 +290,13 @@ lost. *Mechanics are unresolved (T4).*
 1. **Assemble context (code):** the three layers (Family Memory in
    account mode only), plus relevant source records.
 2. **Known facts (code):** enforces "never re-ask."
-3. **Minimize and pseudonymize (code):** remove what this turn doesn't
-   need, and replace names and nicknames with role references (§5.4).
+3. **Minimize and pseudonymize (code):**
+   - keep health-related memories and details only when relevant to a
+     decision in play (§5.5);
+   - replace known names and nicknames with trip-scoped role references
+     (§5.4);
+   - run the best-effort identifying-detail check on everything about to
+     be sent (§5.4).
 4. **Generate (OpenAI):** returns
    `{ reply, recommendations[], question?, intentSignals[], tripChanges[], tripDetails[], claims[] }`.
 5. **Readiness and commitments (code):** §1.1, §2.1.
@@ -366,7 +372,7 @@ stays and later becomes the fallback.
 
 | Risk | Why it remains | Mitigation |
 | --- | --- | --- |
-| **iOS device and iCloud backups** may include exploration data | AsyncStorage doesn't expose iOS backup exclusion; excluding would need native code | Minimization (§5), with no names sent and practical needs rather than diagnoses in trip details; delete control; revisit if local data becomes more sensitive |
+| **iOS device and iCloud backups** may include exploration data | AsyncStorage doesn't expose iOS backup exclusion; excluding would need native code | Minimization (§5), with practical needs rather than diagnoses in trip details; delete control. **Accepted for prototype development only (T17); a privacy and backup review is a launch gate (§14)** |
 | **Web browser storage is unencrypted** and readable by any script on the app's origin | Platform property | Shared-device notice; delete control; strict script policy on the web build (implementation detail) |
 | **Rooted or jailbroken devices** can read app storage | No app-level encryption | Minimization; accepted for ordinary trip-planning data |
 | **Conversation text keeps the traveler's raw words**, including any medical mention | Needed for continuity | Trip details store practical needs, not diagnoses; conversation is deletable; the privacy page explains this |
@@ -490,29 +496,73 @@ message.
 
 Provider-side retention settings are unresolved (T5).
 
-### 5.4 Names and nicknames
+### 5.4 Names and nicknames (T15, resolved)
 
-- Travelers may use names ("Max", "Nana"). The app keeps them **locally
-  (anonymous) or in the account** so replies can feel personal.
-- **Names are not automatically sent to external AI services.** Before
-  each model call, code replaces known names with role references
-  ("child, 9"). After the call, code substitutes the names back for
-  display.
-- This applies to conversation text, trip details, and Family Memory
-  text.
-- *Name detection in free text, and how a name-to-role reference is
-  stored without creating the member records ADR-002 deferred, are
-  unresolved (T15).*
+**Rule: traveler names and nicknames are never intentionally sent to
+external AI providers in v1.**
 
-### 5.5 Sensitive details
+- Travelers may use names ("Max", "Nana"). The app keeps them where
+  the traveler's data already lives (on the device, or in the account)
+  so replies can feel personal.
+- **Role references.** Before each model call, code replaces known names
+  with role references ("child, 9", "grandparent"). After the call, code
+  substitutes the names back for display.
+- **Trip-scoped mapping, no member records.** The name-to-role mapping
+  is part of the trip's own party fact. It's derived from how the
+  traveler described the party and lives and dies with that trip.
+  **No permanent family-member records** are created (ADR-002's deferral
+  stands). A name in Family Memory text that isn't in the current
+  trip's party becomes a generic reference ("a family member").
+- **Best-effort identifying-detail check.** Before sending, code checks
+  outgoing text for identifying details beyond known names: other
+  likely names, email addresses, phone numbers, street addresses,
+  school or employer names, and similar. It replaces or removes what it
+  finds. The traveler's stored text is never altered.
+- **Documented limitations** (shown in the privacy explanation, in plain
+  language):
+  - it can miss names it doesn't recognize: unusual spellings, names in
+    other languages, nicknames never stated as names;
+  - it may not recognize names that are also ordinary words ("Hope",
+    "Summer");
+  - it can't catch every contextual identifier (a unique job, a small
+    town plus a rare detail);
+  - it may sometimes remove something harmless.
 
-- Health-related details are recorded as practical needs in trip
-  details.
-- They are sent to the model only as the practical need, and only when
-  minimization keeps them for the turn.
-- *Whether health-related Family Memory entries are sent on every turn
-  (Memory v1: all memories, verbatim) or only when relevant is a
-  founder decision (T16).*
+  It reduces exposure. It is not a guarantee, so the privacy page says
+  so.
+- *Detection method and accuracy targets are a technical decision (T15
+  technical, §10).*
+
+### 5.5 Health and other sensitive details (T16, resolved)
+
+**Rule: data minimization with decision-level relevance.**
+
+- **Trip details record practical needs, not diagnoses** (§2.2).
+- **Health-related Family Memory entries and trip details are sent only
+  when relevant to a decision in play**, not on every turn.
+- **Relevance is decision-level, not keyword-level.** It depends on
+  what's being planned, not on whether the latest message mentions the
+  topic. Examples:
+  - a food allergy is relevant whenever dining, restaurants, snacks, or
+    food are part of the decision, even if the latest message doesn't
+    mention it;
+  - a mobility need is relevant to activities, where to stay, pace, and
+    getting around;
+  - motion sickness is relevant to driving routes, scenic drives, boats,
+    and rides.
+- **Safety first:** when it's unclear whether a health detail is
+  relevant to a decision with safety implications, include it.
+- **Original text stays private and editable.** What's sent is the
+  minimum needed. The traveler's own words are kept unchanged in their
+  Family Memory or trip and can be edited at any time.
+- **Never automatically promoted.** Trip health details reach Family
+  Memory only through an explicit "Save for future trips" (ADR-005).
+- Sensitive classification and relevance must be deterministic,
+  auditable, and conservative, and must never create a stored profile.
+  *Mechanism (sensitivity rules and the decision-to-topic map) is a
+  technical decision (T16 technical, §10).*
+- This refines the Memory v1 spec's injection rule (now v1.1, §4):
+  non-sensitive memories are still sent in full.
 
 ---
 
@@ -520,10 +570,9 @@ Provider-side retention settings are unresolved (T5).
 
 | Table | Purpose | Notes |
 | --- | --- | --- |
-| `trips` | One row per trip | Status; trip facts with considering/decided state |
+| `trips` | One row per trip | Status; trip facts with considering/decided state. The party fact holds the trip-scoped name-to-role mapping (§5.4); no separate people table |
 | `trip_details` | Group preferences, needs, traditions | `travelerWords` verbatim; `saved_memory_id` |
 | `memories` | Family Memory | Memory v1 spec. **Engine server role: read only.** Path-3 saves set `trip_id` (ADR-005) |
-| `people_refs` | Names and nicknames to role references | Shape depends on T15; never sent to external AI |
 | `conversations` / `conversation_messages` | Planning dialogue | Hard delete on delete |
 | `recommendations` | Suggestions | §1.4 |
 | `source_documents` / `claim_checks` | Research and verification | §4.1 |
@@ -575,10 +624,10 @@ suggestions, and local names. It holds no memories.
 
 | # | Milestone | Delivers | Exit criteria |
 | --- | --- | --- | --- |
-| **M0** | Decisions and docs | ADR-004 and ADR-005 decided; Memory v1 spec and domain model updated to match; §10 founder decisions answered | Founder sign-off |
+| **M0** | Decisions and docs | ADR-005 accepted and ADR-001 amendment noted (done); Memory v1 spec v1.1 (done); ADR-004 accepted; domain model updated (§11); PR merged | Founder sign-off on ADR-004 |
 | **M1** | Local exploration | AsyncStorage behind `ExplorationStore`; versioned, chunked documents; Android backup exclusion; delete control; web shared-device notice; prototype "About your trip" chips become trip details (no anonymous memory) | Restart restores everything; delete leaves nothing; large-conversation test passes |
-| **M2** | Planning conversation | Server pipeline; OpenAI with configurable model; per-decision readiness; exploring vs. committing; trip details; minimization and pseudonymization; three-policy privacy explanation; claims at R0; eval harness | Scenarios pass, except account and verified-fact steps; zero memory writes; no names in model inputs |
-| **M3** | Accounts, transfer, Family Memory | Supabase auth and RLS; transfer; Family Memory area (account-only); "Save for future trips" (only if ADR-005 is accepted); retention and deletion | Scenario account, transfer, and save steps pass; RLS test; Memory v1 criteria 2, 4, 6, 8 |
+| **M2** | Planning conversation | Server pipeline; OpenAI with configurable model; per-decision readiness; exploring vs. committing; trip details; minimization with decision-level health relevance; trip-scoped pseudonymization; best-effort identifying-detail check; three-policy privacy explanation, including the check's limitations; claims at R0; eval harness | Scenarios pass, except account and verified-fact steps; zero memory writes; no known names in model inputs |
+| **M3** | Accounts, transfer, Family Memory | Supabase auth and RLS; transfer; Family Memory area (account-only); "Save for future trips" (ADR-005); retention and deletion | Scenario account, transfer, and save steps pass; RLS test; Memory v1 criteria 2, 4, 6, 8 |
 | **M4** | Live research | R1, then R2; claim-level verification | Verified-fact criteria pass; audit finds no verified label on an unsupported claim |
 | **M5** | Briefing on the engine | The briefing uses the engine; rule-based fallback | The 12 existing briefing scenarios pass |
 
@@ -592,16 +641,15 @@ suggestions, and local names. It holds no memories.
 | --- | --- | --- |
 | **T1** | On-device storage | **Resolved.** AsyncStorage behind `ExplorationStore`; versioned, chunked documents; iOS, Android, and web; Android backup exclusion; no application-level encryption in v1; minimization; delete controls; web shared-device notice. Residual risks in §3.6. Package approved, not yet installed. |
 | **T3** | Family Memory before sign-up | **Resolved.** None for anonymous travelers. Account-owned, authored after sign-up. |
-| **T14** | Family Memory experience | **Conditionally resolved.** Trip details stay in their trip unless the traveler saves them, through a deterministic, contextual "Save for future trips" action plus an easy-to-reach Family Memory area (§2.3). **Depends on ADR-005 being accepted.** Without it, only the Family Memory area and "Remember this" remain. |
+| **T14** | Family Memory experience | **Resolved.** Trip details stay in their trip unless the traveler saves them, through a visible, deterministic "Save for future trips" action plus an easy-to-reach Family Memory area (§2.3). ADR-005 accepted. |
+| **ADR-005** | Amendment to ADR-001 | **Accepted.** Three user-initiated write paths; AI memory suggestions remain prohibited. An amendment note was added to ADR-001. |
+| **T15** | Names and nicknames | **Resolved.** Never intentionally sent to external AI providers in v1. Trip-scoped role references, with no permanent member records. Best-effort identifying-detail check with documented limitations (§5.4). |
+| **T16** | Health memories and details | **Resolved.** Data minimization with decision-level relevance; never sent wholesale every turn; original text kept private and editable; never promoted automatically (§5.5). Memory v1 spec updated to v1.1. |
+| **T17** | iOS backup residual risk | **Accepted for prototype development only.** Not production approval. A privacy and backup review is a launch gate (§14). |
 
 ### Needs founder input
 
-| # | Decision | Why it's a founder call |
-| --- | --- | --- |
-| **ADR-005** | Accept the narrow amendment to ADR-001 (a third, user-initiated write path) | It changes an accepted decision record |
-| **T15** | How names and nicknames are handled: always pseudonymized (current spec), or also an explicit opt-in to send names? And may a lightweight name-to-role list exist, given ADR-002 deferred member entities? | Privacy promise and ADR-002 scope |
-| **T16** | Health-related Family Memory: sent on every turn (Memory v1's "all memories, verbatim") or only when relevant to the turn (minimization)? | A tradeoff between safety (an allergy always considered) and privacy, and it changes the Memory v1 spec |
-| **T17** | Accept the iOS backup residual risk for v1 (§3.6), or require native backup exclusion before launch | Risk acceptance |
+None open at this time. ADR-004 itself still needs acceptance (M0).
 
 ### Unresolved technical decisions
 
@@ -618,7 +666,8 @@ suggestions, and local names. It holds no memories.
 | T11 | Eval harness: judging, where it runs, merge gating | M2 |
 | T12 | Shared code between `mobile/` and the server (ADR-003 record) | M2 |
 | T13 | Detecting relevance, time-sensitive claims, internal terms, and memory-proposal language; error rates | M2 |
-| T15 (technical part) | Name detection in free text and re-substitution reliability | M2 |
+| T15-tech | Identifying-detail check: detection method (rules, a local model, or both), accuracy targets, test set, re-substitution reliability, and how the party mapping is parsed from the traveler's words | M2 |
+| T16-tech | Health sensitivity rules (how a memory or detail is recognized as health-related, conservatively, without a stored profile) and the decision-to-topic relevance map | M2 |
 
 ---
 
@@ -630,8 +679,10 @@ suggestions, and local names. It holds no memories.
   group, in the traveler's words, scoped to one trip.
 - **New: Conversation**, **Exploration** (anonymous, on device, no
   Family Memory), **Source document**, **Claim check**.
-- **Memory:** account-only, authored by the traveler. Write paths per
-  ADR-001 (and ADR-005 if accepted).
+- **Memory:** account-only, authored by the traveler. Three write paths
+  per ADR-001 as amended by ADR-005.
+- **Party** (within Trip): may hold a trip-scoped name-to-role mapping.
+  This is not a Member entity (ADR-002).
 - **Recommendation:** gains decision, reason, kind, confidence, claims,
   citations, and status.
 
@@ -653,10 +704,10 @@ suggestions, and local names. It holds no memories.
    drafts, or highlights a memory.
 8. Trip details are used in their trip and never shape another trip
    unless saved.
-9. "Save for future trips" (if ADR-005 is accepted) appears on every
-   eligible traveler-stated detail by a fixed rule. It is never in the
-   conversation, opens a sheet pre-filled with the traveler's words, and
-   saves only on Save.
+9. "Save for future trips" (ADR-005) appears visibly, in a consistent
+   place, on every eligible traveler-stated detail by a fixed rule. It
+   is never in the conversation, opens a sheet pre-filled with the
+   traveler's words, and saves only on Save.
 10. Anonymous travelers: no Family Memory. A save action explains that
     an account is needed, and "Not now" returns them without further
     prompts.
@@ -667,11 +718,16 @@ suggestions, and local names. It holds no memories.
     shared-device notice.
 13. Transfer yields exactly one trip and conversation, and creates no
     Family Memory.
-14. No names, nicknames, emails, or account identifiers in model inputs.
-    No family details in research queries. Trip details record
-    practical needs, not diagnoses.
-15. No internal terms in user-facing text.
-16. Both acceptance scenarios pass.
+14. No known names or nicknames, emails, or account identifiers in model
+    inputs. The identifying-detail check runs on every outgoing request.
+    No family details in research queries. Trip details record practical
+    needs, not diagnoses.
+15. Health-related memories and details are sent only when relevant to a
+    decision in play (e.g. an allergy during dining decisions, even if
+    unmentioned), and are absent otherwise. They are never promoted to
+    Family Memory without an explicit save.
+16. No internal terms in user-facing text.
+17. Both acceptance scenarios pass.
 
 ---
 
@@ -680,4 +736,22 @@ suggestions, and local names. It holds no memories.
 Bookings and payments; inventory prices; affiliate links; real-time
 in-trip guidance; multi-destination routing; shared trips; learning
 from behavior; AI memory suggestions; anonymous Family Memory;
-application-level local encryption; push notifications.
+permanent family-member records; application-level local encryption;
+push notifications.
+
+---
+
+## 14. Launch gates (before any public release)
+
+Prototype development may proceed without these. Public launch may not.
+
+1. **Privacy and backup review (T17).** A specific review of local
+   storage exposure, including iOS device and iCloud backups, Android
+   backup exclusion, web storage, and whether native backup exclusion or
+   encryption is required. **Accepting the residual risk for prototype
+   development is not production approval.**
+2. **Privacy policy published** covering the three policies (§5.1–5.3),
+   including the documented limitations of the identifying-detail check.
+3. **Provider retention settings confirmed** for OpenAI and research
+   providers (T5, T6).
+4. **Deletion and backup retention verified** end to end (T10).

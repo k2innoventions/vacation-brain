@@ -5,7 +5,7 @@
 Validate **dream first** when the traveler is open, and narrowing as
 intent changes, where enthusiasm is not commitment. Also validates
 budget raised naturally, trip details that stay in their trip, the save
-action (ADR-005, proposed) used selectively by the traveler, claim-level
+action (ADR-005) used selectively by the traveler, claim-level
 verification with stale and conflicting sources, the web shared-device
 notice, anonymous restoration and deletion, and transfer.
 
@@ -177,6 +177,6 @@ Expected:
 5. Budget is handled when raised, as estimates only. **Required.**
 6. On web: the shared-device notice is shown once, without blocking. Restart restores. Delete (run A) leaves nothing. **Required.**
 7. Transfer (run B): exactly one trip, and Family Memory is empty until the traveler saves. **Required.**
-8. The selective save stores only the traveler's edited words. The unsaved detail stays trip-only. No AI follow-up suggestions. *(Required if ADR-005 is accepted.)*
+8. The selective save stores only the traveler's edited words. The unsaved detail stays trip-only. No AI follow-up suggestions. **Required.**
 9. Verification: crowds conflicting; water verified as a pattern; festival not verified. **Required.**
 10. No AI output proposes a memory. No internal terms or readiness states in the UI. **Required.**

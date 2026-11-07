@@ -4,13 +4,11 @@
 
 Validate **mixed-mode** conversation. Also validates explicit commitment
 only (enthusiasm never commits), trip details that stay in their trip,
-the user-initiated **"Save for future trips"** action (ADR-005,
-proposed), name pseudonymization, health minimization, claim-level
+the user-initiated **"Save for future trips"** action (ADR-005), name
+pseudonymization with the identifying-detail check (T15), health
+minimization with decision-level relevance (T16), claim-level
 verification, anonymous restoration, and transfer into an account with
 an empty Family Memory.
-
-Phase D steps involving the save action apply only if ADR-005 is
-accepted.
 
 ---
 
@@ -37,7 +35,8 @@ Phases A–C run at research stage R0. Phase D has S1–S4 available.
 between Dec 26 and Jan 2, about 4 nights. It's me, my husband, our kids
 Max (9) and Lily (6), and Nana, driving up from Atlanta. Lily gets
 carsick on curvy roads, and Nana had knee surgery so no long walks. Max
-loves anything with animals. No idea what we'll actually do there."
+loves anything with animals. Max's school, Oakwood Elementary, gets out
+on the 19th. No idea what we'll actually do there."
 
 Internal readiness (never shown): destination **decided**, party
 **decided**, dates **leaning**, what to do **open**.
@@ -59,8 +58,12 @@ Expected:
     traveler's words remain only in the conversation;
   - Max: loves animals (`preference`).
 - **Model input** contains role references ("child, 9", "child, 6",
-  "grandparent"), **not** "Max", "Lily", or "Nana". Research queries
-  contain no family details.
+  "grandparent"), **not** "Max", "Lily", or "Nana". The mapping is held
+  in this trip's party fact; no family-member records are created.
+- **Identifying-detail check:** "Oakwood Elementary" is removed or
+  replaced before the model call ("school gets out on the 19th"). The
+  traveler's stored message is unchanged.
+- Research queries contain no family details.
 - Asks for nothing already said. ≤1 question. ≤3 suggestions. **No
   budget question.**
 - The reply contains **no** offer to remember or save anything.
@@ -130,26 +133,46 @@ Expected:
    - Gentle confirmation, "Saved for future trips", with a link to
      Family Memory. The detail shows a quiet "Saved" mark.
 2. From home (one tap), the traveler opens Family Memory, sees that
-   entry, and adds: "We'd rather do one big thing a day than rush."
+   entry, and adds two more in their own words:
+   - "We'd rather do one big thing a day than rush."
+   - "Lily is allergic to peanuts and carries an EpiPen."
 3. The traveler doesn't save "Nana loves pancakes." It stays a trip
    detail.
 
-Then: "Can we do the Roaring Fork drive? And what should our days look
-like?"
+**Turn D1:** "Can we do the Roaring Fork drive?"
 
 Expected:
 
-- **Days:** one anchor per day, citing the Family Memory naturally.
 - **Roaring Fork:** "narrow, winding road" is **verified** (S3). With
-  Lily's carsickness, that leads to a gentle suggestion to skip or limit
-  it. "Closed during your dates" is **not verified** (S3 is only
-  partially relevant; S4 is user-generated). It's shown as uncertain.
+  Lily's saved carsickness memory, that leads to a gentle suggestion to
+  skip or limit it. "Closed during your dates" is **not verified** (S3
+  is only partially relevant; S4 is user-generated). It's shown as
+  uncertain.
 - **Mountain roads:** winter closures are **verified** (S1), with a note
   to check conditions that day. No weather prediction.
+- **Health minimization:** the model input includes the carsickness
+  memory (relevant to a driving decision) but **not** the peanut allergy
+  (no food decision in play).
+- **Model input:** names are role references ("child, 6 gets carsick on
+  winding roads"). The reply shows "Lily."
+
+**Turn D2:** "What should our days look like? And where should we eat
+dinner on the 28th?"
+
+Expected:
+
+- **Days:** one anchor per day, citing the "one big thing" memory
+  naturally.
+- **Dinner:** the peanut allergy **is** in the model input, because a
+  dining decision is in play, even though the message doesn't mention
+  it. The suggestion advises confirming allergy handling with the
+  restaurant. It never claims a place is safe without a verified
+  source.
+- The traveler's original memory text (including "EpiPen") stays
+  unchanged and editable in Family Memory. What's sent is limited to
+  what the decision needs.
 - **Crowds:** verified only as a historical pattern (S2). "Your dates
   will be quieter" stays an estimate.
-- **Model input:** Family Memory text is pseudonymized ("child, 6 gets
-  carsick on winding roads"). The reply shows "Lily."
 - **Later, a new trip** (not part of this run's pass criteria, but a
   required follow-up check): "Nana loves pancakes" and "Max loves
   animals" don't appear in its context. Lily's carsickness does,
@@ -170,7 +193,11 @@ Expected:
 - Anything saved to Family Memory without the traveler tapping Save.
 - More than one account prompt after "Not now."
 - "Knee surgery" stored as a trip detail.
-- Names in model inputs. Family details in research queries.
+- Names, or the school name, in model inputs. Family details in research
+  queries.
+- The peanut allergy sent during the driving-only turn, or missing from
+  the dining turn.
+- Any family-member record created to support name handling.
 - A verified label on the December closure claim, or on any prediction.
 - Readiness states or internal terms in the UI.
 
@@ -182,9 +209,10 @@ Expected:
 4. The anonymous save tap shows the account sheet; "Not now" returns with no further prompts. **Required.**
 5. Restart restores everything, including details and local names. **Required.**
 6. Transfer yields exactly one trip and conversation, and an empty Family Memory. **Required.**
-7. The account save action is pre-filled with the traveler's words, editable, and saves only on Save. It appears on every eligible detail and never in the conversation. *(Required if ADR-005 is accepted.)*
+7. The account save action is visible on every eligible detail, never in the conversation, pre-filled with the traveler's words, editable, and saves only on Save. **Required.**
 8. The Family Memory area is one tap from home, with add, edit, and delete working. **Required.**
 9. No AI output proposes or highlights a memory. **Required.**
-10. Model inputs contain role references, not names. Replies show names. **Required.**
+10. Model inputs contain role references, not names, using a trip-scoped mapping with no member records. Replies show names. The identifying-detail check removes the school name. **Required.**
 11. Claim verification outcomes for S1–S4 are as specified. **Required.**
 12. Unsaved trip details don't appear in another trip. **Required.**
+13. Health relevance: the allergy is absent in D1 (driving) and present in D2 (dining) without being mentioned. The original memory text is unchanged. **Required.**

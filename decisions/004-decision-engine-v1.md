@@ -1,9 +1,9 @@
 # Decision 004 — Decision Engine v1
 
-**Status:** Proposed (product decisions resolved 2026-11-07; revised after PR #6 review; T1, T3, T14 resolved; remaining technical decisions in spec §10)
+**Status:** Proposed (all product decisions resolved 2026-11-07, including T1, T3, T14–T17; remaining technical decisions in spec §10)
 **Date:** 2026-11-07
 **Deciders:** Founder, Engineering
-**Related:** [001](001-v1-memory-scope.md), [002](002-memory-ownership.md), [003](003-canonical-app-location.md), [005](005-user-initiated-memory-saves.md) (proposed)
+**Related:** [001](001-v1-memory-scope.md), [002](002-memory-ownership.md), [003](003-canonical-app-location.md), [005](005-user-initiated-memory-saves.md) (accepted)
 **Specification:** [docs/product/04-decision-engine-v1-spec.md](../docs/product/04-decision-engine-v1-spec.md)
 
 ---
@@ -27,7 +27,8 @@ they're not.
 
 ADR-001 forbids automatic memory inference. A conversational planner is
 exactly where inference would creep in. This record shows how the two
-coexist, and relies on ADR-005 (proposed) for one narrow change.
+coexist, together with ADR-005 (accepted), which amends ADR-001 for one
+narrow, user-initiated save action.
 
 ## Decision
 
@@ -60,12 +61,11 @@ travel**.
    Memory.
 7. **What's shared in a trip stays in that trip (T14).** It stays there
    unless the traveler explicitly chooses "Save for future trips."
-   Saving is obvious, easy, and delightful, through a quiet contextual
-   action on existing trip details plus an easy-to-reach Family Memory
-   area. It is never automatic, never suggested by the AI, never
-   repeated, and never interrupts. This requires the narrow ADR-001
-   amendment proposed in **ADR-005**. Until that's accepted, the action
-   does not ship.
+   Saving is obvious, easy, and delightful, through a visible,
+   easy-to-discover action on eligible trip details plus an
+   easy-to-reach Family Memory area. It is never automatic, never
+   suggested by the AI, never repeated, and never interrupts. Governed by
+   **ADR-005 (accepted)**.
 8. **OpenAI, server-side,** with configurable model selection.
 9. **Research architecture now, live research incrementally,** with
    claim-level verification: relevance, freshness, reliability, and
@@ -74,9 +74,22 @@ travel**.
 10. **Privacy explained, sharing minimized,** under three distinct
     policies: what's **collected**, what's **retained** (locally or in
     the account), and what's **transmitted** to OpenAI or research
-    providers. **Names and nicknames may be kept for personalization
-    but are not automatically sent to external AI services.** Sensitive
-    family details, especially medical ones, are minimized.
+    providers.
+    - **Names (T15):** traveler names and nicknames are **never
+      intentionally sent to external AI providers in v1**. Code replaces
+      them with role references, using a trip-scoped mapping from the
+      trip's own party description. **No permanent family-member
+      records** are created for this. A best-effort privacy check also
+      looks for other identifying details in free text. Its limits are
+      documented: it can miss things.
+    - **Health (T16):** data minimization with **decision-level
+      relevance**. Health-related memories and trip details are sent
+      only when relevant to a decision in play. A food allergy counts
+      for restaurant planning even if the latest message doesn't
+      mention it. Health information is never sent wholesale on every
+      turn. The original user-authored text stays private and editable.
+      Trip health details are **never promoted automatically** to
+      Family Memory.
 11. **Account conversations are retained until the user deletes them.**
 12. **Budget comes up naturally,** never as the first question.
 13. **One meaningful question at a time.**
@@ -92,6 +105,10 @@ travel**.
 - **No application-level encryption** for ordinary trip-planning
   information in v1. Residual risks are documented in the spec (§3.6):
   iOS backups, web shared devices, and readable browser storage.
+- **T17, iOS backups:** the residual risk is **accepted for prototype
+  development only**. This is **not production approval.** A specific
+  **privacy and backup review is a launch gate** before any public
+  release (spec §14).
 - Clear deletion controls, plus a **shared-device notice on web**.
 - The package is approved but **not yet installed**. It is installed in
   M1.
@@ -113,8 +130,9 @@ holds), and the word never appears in the UI.
 
 ## Reconciliation with ADR-001
 
-ADR-001 stays in force **unchanged** unless and until ADR-005 is
-accepted. The engine is a **reader** of Family Memory, never a writer.
+ADR-001 stays in force, **as amended by ADR-005** (guardrail 3: three
+user-initiated write paths; no AI memory suggestions). The engine is a
+**reader** of Family Memory, never a writer.
 
 ### The three layers
 
@@ -122,13 +140,13 @@ accepted. The engine is a **reader** of Family Memory, never a writer.
 | --- | --- | --- | --- | --- | --- |
 | **Conversation context** | What was said in one planning conversation | One conversation | Traveler and engine, as messages | Yes, on device | Until deleted |
 | **Trip state** | Trip facts (considering or decided) and trip details (the group's preferences, needs, and traditions in the traveler's words) | One trip | Engine records details and considering facts; decided facts only on explicit commitment | Yes, on device | Until the trip is deleted |
-| **Family Memory** | Durable statements authored by the traveler | Account (ADR-002) | **Only the traveler**, through ADR-001's write paths (plus "Save for future trips" if ADR-005 is accepted) | **No** | Until edited or deleted |
+| **Family Memory** | Durable statements authored by the traveler | Account (ADR-002) | **Only the traveler**, through the three write paths (ADR-001 as amended by ADR-005) | **No** | Until edited or deleted |
 
 ### Rules
 
 | ADR-001 rule | How the engine complies |
 | --- | --- |
-| Limited write paths | The engine has **no write access** to memory (read-only server role, tested). "Save for future trips" is a traveler action handled by the app, not the engine, and exists only if ADR-005 is accepted. |
+| Limited write paths | The engine has **no write access** to memory (read-only server role, tested). "Save for future trips" is a traveler action handled by the app, not the engine (ADR-005). |
 | The app never suggests a memory | The AI never proposes memories, never offers to remember, and never selects what's worth saving. The validator rejects such language. Save actions appear by a fixed rule on every eligible detail (ADR-005), never chosen by the AI. |
 | Chat never writes to memory | Conversation goes to conversation storage. Trip details go to trip state. |
 | No inference | Signals are logged append-only. Nothing reads them to shape advice in v1. |
@@ -171,8 +189,9 @@ only if the traveler taps "Save for future trips" and approves the text
 
 - We want the engine to learn across trips or suggest memories
   (supersede ADR-001).
-- ADR-005 is rejected (T14 then falls back to the Family Memory area
-  only).
+- The best-effort identifying-detail check proves too unreliable for
+  the privacy promise (T15).
+- Public launch approaches: run the privacy and backup review (T17).
 - Local data starts holding information that warrants encryption.
 - Claim verification cost or latency makes the staged rollout
   impractical.
