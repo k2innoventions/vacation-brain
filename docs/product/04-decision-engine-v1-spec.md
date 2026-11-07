@@ -1,8 +1,8 @@
 # Decision Engine v1 — Implementation Specification
 
-**Version:** 0.5 (all product decisions resolved; ADR-005 accepted; remaining technical decisions open)
-**Status:** Proposed
-**Governing decisions:** [ADR-004](../../decisions/004-decision-engine-v1.md) (proposed), [ADR-005](../../decisions/005-user-initiated-memory-saves.md) (accepted), [ADR-001](../../decisions/001-v1-memory-scope.md) (as amended), [Memory v1 spec](03-memory-v1-spec.md) (v1.1), [ADR-002](../../decisions/002-memory-ownership.md), [ADR-003](../../decisions/003-canonical-app-location.md)
+**Version:** 1.0 (all product decisions resolved; remaining technical decisions in §10)
+**Status:** Accepted — M0 complete; ready for M1
+**Governing decisions:** [ADR-004](../../decisions/004-decision-engine-v1.md) (accepted), [ADR-005](../../decisions/005-user-initiated-memory-saves.md) (accepted), [ADR-001](../../decisions/001-v1-memory-scope.md) (as amended), [Memory v1 spec](03-memory-v1-spec.md) (v1.1), [ADR-002](../../decisions/002-memory-ownership.md), [ADR-003](../../decisions/003-canonical-app-location.md)
 **Implements:** blueprint layer 4 (Reasoning Engine), `intelligence/01-decision-framework.md`
 **Acceptance scenarios:** `scenarios/decision-engine/`
 
@@ -624,7 +624,7 @@ suggestions, and local names. It holds no memories.
 
 | # | Milestone | Delivers | Exit criteria |
 | --- | --- | --- | --- |
-| **M0** | Decisions and docs | ADR-005 accepted and ADR-001 amendment noted (done); Memory v1 spec v1.1 (done); ADR-004 accepted; domain model updated (§11); PR merged | Founder sign-off on ADR-004 |
+| **M0** | Decisions and docs | **Done:** ADR-004 and ADR-005 accepted; ADR-001 amendment noted; Memory v1 spec v1.1; domain model v1.1 | Founder sign-off (2026-11-07) |
 | **M1** | Local exploration | AsyncStorage behind `ExplorationStore`; versioned, chunked documents; Android backup exclusion; delete control; web shared-device notice; prototype "About your trip" chips become trip details (no anonymous memory) | Restart restores everything; delete leaves nothing; large-conversation test passes |
 | **M2** | Planning conversation | Server pipeline; OpenAI with configurable model; per-decision readiness; exploring vs. committing; trip details; minimization with decision-level health relevance; trip-scoped pseudonymization; best-effort identifying-detail check; three-policy privacy explanation, including the check's limitations; claims at R0; eval harness | Scenarios pass, except account and verified-fact steps; zero memory writes; no known names in model inputs |
 | **M3** | Accounts, transfer, Family Memory | Supabase auth and RLS; transfer; Family Memory area (account-only); "Save for future trips" (ADR-005); retention and deletion | Scenario account, transfer, and save steps pass; RLS test; Memory v1 criteria 2, 4, 6, 8 |
@@ -649,7 +649,7 @@ suggestions, and local names. It holds no memories.
 
 ### Needs founder input
 
-None open at this time. ADR-004 itself still needs acceptance (M0).
+None open at this time. ADR-004 accepted 2026-11-07.
 
 ### Unresolved technical decisions
 
@@ -671,7 +671,7 @@ None open at this time. ADR-004 itself still needs acceptance (M0).
 
 ---
 
-## 11. Domain model changes (to apply to `docs/product/01-domain-model.md` in M0)
+## 11. Domain model changes (applied in [domain model v1.1](01-domain-model.md))
 
 - **Trip:** facts are *considering* or *decided*. Add trip details.
   Status lifecycle: planning → booked → active → complete.

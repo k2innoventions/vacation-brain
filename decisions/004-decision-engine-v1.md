@@ -1,7 +1,7 @@
 # Decision 004 — Decision Engine v1
 
-**Status:** Proposed (all product decisions resolved 2026-11-07, including T1, T3, T14–T17; remaining technical decisions in spec §10)
-**Date:** 2026-11-07
+**Status:** Accepted (all product decisions resolved, including T1, T3, T14–T17; remaining technical decisions in spec §10)
+**Date:** Proposed 2026-11-07; accepted 2026-11-07
 **Deciders:** Founder, Engineering
 **Related:** [001](001-v1-memory-scope.md), [002](002-memory-ownership.md), [003](003-canonical-app-location.md), [005](005-user-initiated-memory-saves.md) (accepted)
 **Specification:** [docs/product/04-decision-engine-v1-spec.md](../docs/product/04-decision-engine-v1-spec.md)
