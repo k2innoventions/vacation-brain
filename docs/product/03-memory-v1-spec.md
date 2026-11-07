@@ -1,8 +1,16 @@
 # Memory v1 Specification — Explicit Context Persistence
 
-**Version:** 1.0
+**Version:** 1.1 (aligned with ADR-005 and ADR-004 T15/T16, 2026-11-07)
 **Status:** Ready to build
-**Governing decisions:** [ADR-001](../../decisions/001-v1-memory-scope.md), [ADR-002](../../decisions/002-memory-ownership.md)
+**Governing decisions:** [ADR-001](../../decisions/001-v1-memory-scope.md) (as amended by [ADR-005](../../decisions/005-user-initiated-memory-saves.md)), [ADR-002](../../decisions/002-memory-ownership.md), [ADR-004](../../decisions/004-decision-engine-v1.md)
+
+> **v1.1 changes:** (1) a third write path, "Save for future trips"
+> (ADR-005), in §3; (2) memories sent to an external AI provider are
+> minimized: names become role references (T15), and health-related
+> memories are sent only when relevant to a decision in play (T16), in
+> §4. Original text is always kept, unchanged, for the user.
+> (3) Family Memory is account-only; anonymous travelers have none
+> (ADR-004, T3).
 **Data model:** `memories` table + `events` table (see Supabase schema)
 
 ---
@@ -62,7 +70,7 @@ Every memory has exactly one author: the user. `source` is always
 
 ## 3. How users add, edit, and delete memories
 
-**Two write paths. Exactly two.** (ADR-001 tripwire)
+**Three write paths. Exactly three.** (ADR-001 tripwire, as amended by ADR-005)
 
 1. **Family Memory screen** — a single scrollable list of all
    memories, newest first. Add (text field + save), edit in place,
@@ -71,6 +79,15 @@ Every memory has exactly one author: the user. `source` is always
 2. **"Remember this" button** — available during an active trip
    (briefing screen and chat screen). Opens one text field, saves
    with `trip_id` set to the current trip.
+3. **"Save for future trips"** (ADR-005) — a visible control on every
+   eligible, traveler-stated trip detail (preference, need,
+   tradition). Opens a sheet pre-filled with the traveler's own words,
+   editable. Saves only when the traveler taps Save, with `trip_id`
+   set to the originating trip. Never shown in the conversation and
+   never chosen by AI.
+
+All three paths require an account. Anonymous travelers have no
+Family Memory (ADR-004, T3).
 
 Rules:
 
@@ -88,9 +105,26 @@ Rules:
 
 ## 4. How memories influence briefings, recommendations, and chat
 
-One mechanism everywhere: **all memories are injected verbatim into
-every generation prompt** (briefing and chat). At ≤30 short entries,
-the full list always fits — no retrieval, no ranking, no embeddings.
+One mechanism everywhere: memories are injected into every generation
+prompt (briefing and chat), with **minimization** applied by code
+before anything leaves our systems (v1.1):
+
+- **Names and nicknames** are replaced with role references (T15). The
+  original text is kept unchanged for the user.
+- **Health-related memories** (allergies, conditions, mobility,
+  medication, motion sickness and similar) are sent **only when
+  relevant to a decision in play**, not on every turn (T16). Relevance
+  is decision-level, not keyword-level. A food allergy is relevant
+  whenever dining or food is part of what's being planned, even if the
+  latest message doesn't mention it. When in doubt about safety
+  relevance, include it.
+- **All other memories** are injected in full. At ≤30 short entries the
+  list fits, with no retrieval, ranking, or embeddings.
+
+How health-relatedness and decision relevance are determined is a
+technical decision tracked in the Decision Engine spec (§10). It must
+be deterministic, auditable, and conservative, and must never create a
+stored profile.
 
 Prompt rules for the model:
 
@@ -115,9 +149,14 @@ Hard rules, enforceable in code review:
 - **The app never suggests a memory.** Not in chat ("want me to
   remember that?"), not after patterns, not from reservations. The
   moment the app proposes what to remember, we've built inference's
-  front door (ADR-001).
-- **Chat never writes to the memories table.** Only the two write
+  front door (ADR-001). The "Save for future trips" control (ADR-005)
+  is not a suggestion: it appears on every eligible detail by a fixed
+  rule, is never chosen or worded by AI, and saves only the traveler's
+  own approved words.
+- **Chat never writes to the memories table.** Only the three write
   paths do.
+- **Trip health details are never promoted automatically.** They
+  reach Family Memory only through an explicit save.
 - **The memory list is the whole truth.** There is no hidden profile,
   no shadow context, no "we also noticed…" The user can read 100% of
   what the model is told about their family.
@@ -179,7 +218,7 @@ that memory `abc-123` (type: null) was deleted, and nothing more.
 4. Deleting a memory removes its content from the database and from
    all subsequent prompts; the deletion event contains no content.
 5. The 31st memory cannot be added; the cap UX offers edit/remove.
-6. No code path outside the two write paths inserts into `memories`.
+6. No code path outside the three write paths inserts into `memories`.
 7. Grep test: generated briefings/chat never assert a family fact
    absent from `prompt_inputs`.
 8. RLS: a second test account cannot read or write the first
