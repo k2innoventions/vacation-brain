@@ -19,4 +19,4 @@ If implementation and a decision record disagree, stop and resolve it explicitly
 - [001 — V1 Memory Scope](001-v1-memory-scope.md): explicit, user-controlled memory in v1; inference deferred
 - [002 — Memory Ownership in V1](002-memory-ownership.md): memories belong to the account; traveler-level ownership deferred
 - [003 — Canonical App Location](003-canonical-app-location.md): `/mobile` is the canonical Expo app root; `v2/` was an evaluation artifact
-- [004 — Decision Engine v1](004-decision-engine-v1.md) *(proposed)*: dream-first planning for general leisure travel; conversation, trip state, and Family Memory stay separate; the engine reads memory but never writes it
+- [004 — Decision Engine v1](004-decision-engine-v1.md) *(proposed)*: dream-first planning for general leisure travel, by intent and readiness; exploring is not committing; claim-level verification; Family Memory is account-only and never written by the engine
