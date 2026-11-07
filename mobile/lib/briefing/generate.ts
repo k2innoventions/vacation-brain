@@ -1,9 +1,15 @@
 import { dayFixture } from '@/lib/fixtures/day';
 import type { Briefing, Memory, Trip } from '@/lib/types';
 
+// Whole calendar days from a to b, ignoring time of day and daylight-saving shifts.
+function calendarDaysBetween(a: Date, b: Date): number {
+  const utcA = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  const utcB = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((utcB - utcA) / (1000 * 60 * 60 * 24));
+}
+
 function daysBetween(start: Date, end: Date): number {
-  const ms = end.getTime() - start.getTime();
-  return Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)) + 1);
+  return Math.max(1, calendarDaysBetween(start, end) + 1);
 }
 
 function tripDayNumber(trip: Trip, today = new Date()): number {
@@ -13,7 +19,7 @@ function tripDayNumber(trip: Trip, today = new Date()): number {
 
   if (today < start) return 0;
 
-  const dayNumber = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const dayNumber = calendarDaysBetween(start, today) + 1;
   return Math.min(Math.max(dayNumber, 1), totalDays);
 }
 
@@ -26,7 +32,7 @@ function totalTripDays(trip: Trip): number {
 function daysUntilTrip(trip: Trip, today = new Date()): number {
   const start = new Date(trip.startDate + 'T00:00:00');
   if (today >= start) return 0;
-  return Math.ceil((start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return calendarDaysBetween(today, start);
 }
 
 function matchesAny(text: string, keywords: string[]): boolean {
@@ -34,8 +40,8 @@ function matchesAny(text: string, keywords: string[]): boolean {
   return keywords.some((keyword) => lower.includes(keyword));
 }
 
-function cite(memory: Memory): string {
-  return `"${memory.content}"`;
+function cite(content: string): string {
+  return `"${content}"`;
 }
 
 function pickRelevantMemories(memories: Memory[]): Memory[] {
@@ -46,10 +52,17 @@ function pickRelevantMemories(memories: Memory[]): Memory[] {
 function buildGoal(trip: Trip, memories: Memory[], dayNumber: number, totalDays: number): string {
   const combined = memories.map((m) => m.content).join(' ');
 
-  if (matchesAny(combined, ['first trip', 'first time', 'talking about it'])) {
-    const memory = memories.find((m) => matchesAny(m.content, ['first trip', 'first time', 'overdo']));
+  if (matchesAny(combined, ['first-timers', 'first-timer'])) {
+    const memory = memories.find((m) => matchesAny(m.content, ['first-timers', 'first-timer']));
     if (memory) {
-      return `Day ${dayNumber} of ${totalDays} at ${trip.destination}. You have ${totalDays - dayNumber + 1} days left — today sets the tone for the week. Keeping in mind ${cite(memory)}, we'll keep the plan light and leave room for wonder.`;
+      return `Day ${dayNumber} of ${totalDays} at ${trip.destination}. Keeping in mind ${cite(memory.content)}, we'll keep the plan welcoming and unhurried.`;
+    }
+  }
+
+  if (matchesAny(combined, ['avoid overdoing'])) {
+    const memory = memories.find((m) => matchesAny(m.content, ['avoid overdoing']));
+    if (memory) {
+      return `Day ${dayNumber} of ${totalDays} at ${trip.destination}. ${cite(memory.content)} — today sets the tone for the days ahead.`;
     }
   }
 
@@ -57,67 +70,102 @@ function buildGoal(trip: Trip, memories: Memory[], dayNumber: number, totalDays:
     return `Day ${dayNumber} of ${totalDays} at ${trip.destination}. Your goal for this trip: ${trip.goals.trim()}.`;
   }
 
-  return `Day ${dayNumber} of ${totalDays} at ${trip.destination}. One good day, paced for your family — not optimized for maximum throughput.`;
+  return `Day ${dayNumber} of ${totalDays} at ${trip.destination}. One good day, paced for this group — not optimized for maximum throughput.`;
 }
 
-function buildWeather(): string {
+function buildWeather(memories: Memory[]): string {
   const { weather, park } = dayFixture;
-  return `${weather.condition}, high around ${weather.highF}°F. ${park.name} is open ${park.hours} with ${park.crowd} crowds today.`;
+  let text = `${weather.condition}, high around ${weather.highF}°F. ${park.name} is open ${park.hours} with ${park.crowd} crowds today.`;
+
+  if (matchesAny(memories.map((m) => m.content).join(' '), ['heat sensitivity'])) {
+    text += ' With heat sensitivity in mind, plan shade and hydration early.';
+  }
+
+  return text;
 }
 
 function buildPacing(memories: Memory[], reservation?: Trip['reservation']): { text: string; cited: string[] } {
   const cited: string[] = [];
-  const combined = memories.map((m) => m.content).join(' ');
 
-  const napMemory = memories.find((m) =>
-    matchesAny(m.content, ['nap', '1pm', 'non-negotiable', 'quiet break']),
-  );
+  const napMemory = memories.find((m) => matchesAny(m.content, ['nap window']));
   if (napMemory) {
     cited.push(napMemory.content);
-    let text = `Since you told us ${cite(napMemory)}, we'll front-load the morning and plan a real break around 1:00–3:00 — not as a concession, but as the plan.`;
+    let text = `Keeping in mind ${cite(napMemory.content)}, we'll front-load the morning and protect a quiet window midday.`;
     if (reservation?.name) {
       text += ` That leaves a comfortable window before your ${reservation.time} reservation at ${reservation.name}.`;
     }
     return { text, cited };
   }
 
-  const slowMemory = memories.find((m) =>
-    matchesAny(m.content, ['not rope drop', 'slow morning', 'mornings are slow']),
-  );
-  if (slowMemory) {
-    cited.push(slowMemory.content);
-    const stressMemory = memories.find((m) =>
-      matchesAny(m.content, ['fewer things', 'without stress', 'rush']),
-    );
-    if (stressMemory) cited.push(stressMemory.content);
-
-    let text = `You said ${cite(slowMemory)} — so we're not pushing an early arrival. Plan on a late-morning start and use the evening window when crowds often ease.`;
-    if (stressMemory) {
-      text += ` ${cite(stressMemory)} stays the guide: fewer things, less stress.`;
+  const middayMemory = memories.find((m) => matchesAny(m.content, ['midday break']));
+  if (middayMemory) {
+    cited.push(middayMemory.content);
+    let text = `${cite(middayMemory.content)} — we'll build the day around a real pause in the middle, not as an afterthought.`;
+    if (reservation?.name) {
+      text += ` Dinner at ${reservation.name} (${reservation.time}) still fits comfortably.`;
     }
     return { text, cited };
   }
 
-  const grandmaMemory = memories.find((m) =>
-    matchesAny(m.content, ['grandma', 'cane', 'break every']),
+  const slowMemory = memories.find((m) =>
+    matchesAny(m.content, ['slow mornings', 'prefers slow']),
   );
-  if (grandmaMemory) {
-    cited.push(grandmaMemory.content);
-    const showMemory = memories.find((m) => matchesAny(m.content, ['live show', 'loves show']));
-    if (showMemory) cited.push(showMemory.content);
+  const ropeDropMemory = memories.find((m) => matchesAny(m.content, ['rope drop']));
 
-    let text = `Keeping in mind ${cite(grandmaMemory)}, we'll build in seated anchors every couple of hours — rest that doesn't feel like sitting out.`;
-    if (showMemory) {
-      text += ` ${cite(showMemory)} — shows from today's schedule make natural pauses.`;
+  if (slowMemory && !ropeDropMemory) {
+    cited.push(slowMemory.content);
+    const flexMemory = memories.find((m) => matchesAny(m.content, ['flexible plans']));
+    if (flexMemory) cited.push(flexMemory.content);
+
+    let text = `Keeping in mind ${cite(slowMemory.content)}, we're not pushing an early arrival. A late-morning start works with the day's rhythm.`;
+    if (flexMemory) {
+      text += ` ${cite(flexMemory.content)} stays the guide.`;
     }
     return { text, cited };
+  }
+
+  if (ropeDropMemory && !slowMemory) {
+    cited.push(ropeDropMemory.content);
+    return {
+      text: `${cite(ropeDropMemory.content)} — we'll prioritize the morning window while energy is high.`,
+      cited,
+    };
+  }
+
+  const mobilityMemory = memories.find((m) => matchesAny(m.content, ['mobility needs']));
+  if (mobilityMemory) {
+    cited.push(mobilityMemory.content);
+    return {
+      text: `Keeping in mind ${cite(mobilityMemory.content)}, we'll build in frequent pauses and shorter walking stretches.`,
+      cited,
+    };
+  }
+
+  const poolMemory = memories.find((m) =>
+    matchesAny(m.content, ['pool time matters', 'pool time is part']),
+  );
+  if (poolMemory) {
+    cited.push(poolMemory.content);
+    return {
+      text: `Keeping in mind ${cite(poolMemory.content)}, we'll leave room for resort time — not just park time.`,
+      cited,
+    };
+  }
+
+  const avoidMemory = memories.find((m) => matchesAny(m.content, ['avoid overdoing']));
+  if (avoidMemory) {
+    cited.push(avoidMemory.content);
+    return {
+      text: `${cite(avoidMemory.content)} — we'll keep today's plan lighter than it could be.`,
+      cited,
+    };
   }
 
   const first = memories[0];
   if (first) {
     cited.push(first.content);
     return {
-      text: `Keeping in mind what you've shared — ${cite(first)} — we'll shape today's rhythm around your family's pace, not a generic park schedule.`,
+      text: `Keeping in mind ${cite(first.content)}, we'll shape today's rhythm around what you've shared — not a generic park schedule.`,
       cited,
     };
   }
@@ -130,24 +178,39 @@ function buildPacing(memories: Memory[], reservation?: Trip['reservation']): { t
 
 function buildPriority(memories: Memory[]): { text: string; cited: string[] } {
   const cited: string[] = [];
-  const buzzMemory = memories.find((m) =>
-    matchesAny(m.content, ['buzz lightyear', 'obsessed with buzz']),
-  );
-  if (buzzMemory) {
-    cited.push(buzzMemory.content);
+
+  const characterMemory = memories.find((m) => matchesAny(m.content, ['character moments']));
+  if (characterMemory) {
+    cited.push(characterMemory.content);
     return {
-      text: `Morning priority: Buzz Lightyear's Space Ranger Spin — ${cite(buzzMemory)} makes this a must-do before midday.`,
+      text: `Make time for character moments — ${cite(characterMemory.content)}.`,
       cited,
     };
   }
 
-  const birthdayMemory = memories.find((m) =>
-    matchesAny(m.content, ['birthday', 'celebrating']),
-  );
-  if (birthdayMemory) {
-    cited.push(birthdayMemory.content);
+  const thrillMemory = memories.find((m) => matchesAny(m.content, ['thrill rides matter']));
+  if (thrillMemory) {
+    cited.push(thrillMemory.content);
     return {
-      text: `Today's anchor: ${cite(birthdayMemory)}. We'll protect time for the celebration, not squeeze it between rides.`,
+      text: `Front-load the thrill rides that matter — ${cite(thrillMemory.content)}.`,
+      cited,
+    };
+  }
+
+  const paradeMemory = memories.find((m) => matchesAny(m.content, ['parades matter']));
+  if (paradeMemory) {
+    cited.push(paradeMemory.content);
+    return {
+      text: `Protect time for parades — ${cite(paradeMemory.content)}.`,
+      cited,
+    };
+  }
+
+  const snackMemory = memories.find((m) => matchesAny(m.content, ['snacks are part']));
+  if (snackMemory) {
+    cited.push(snackMemory.content);
+    return {
+      text: `Build in snack stops — ${cite(snackMemory.content)}.`,
       cited,
     };
   }
@@ -155,7 +218,7 @@ function buildPriority(memories: Memory[]): { text: string; cited: string[] } {
   if (memories.length > 0) {
     cited.push(memories[0].content);
     return {
-      text: `One clear priority this morning, shaped by ${cite(memories[0])}. Everything else is optional.`,
+      text: `One clear priority this morning, shaped by ${cite(memories[0].content)}. Everything else is optional.`,
       cited,
     };
   }
@@ -168,24 +231,32 @@ function buildPriority(memories: Memory[]): { text: string; cited: string[] } {
 
 function buildCaution(memories: Memory[]): { text: string; cited: string[] } {
   const cited: string[] = [];
-  const allergyMemory = memories.find((m) =>
-    matchesAny(m.content, ['allergy', 'peanut', 'epinephrine', 'nut']),
-  );
+
+  const allergyMemory = memories.find((m) => matchesAny(m.content, ['food allerg']));
   if (allergyMemory) {
     cited.push(allergyMemory.content);
     return {
-      text: `${cite(allergyMemory)} — mention this when checking in at any dining reservation and ask to speak with a chef or manager. We won't claim any specific item is safe; always verify in person.`,
+      text: `${cite(allergyMemory.content)} — mention this when checking in at any dining reservation and ask to speak with a chef or manager. We won't claim any specific item is safe; always verify in person.`,
       cited,
     };
   }
 
-  const darkRideMemory = memories.find((m) =>
-    matchesAny(m.content, ['dark ride', 'afraid of dark', 'afraid of']),
-  );
-  if (darkRideMemory) {
-    cited.push(darkRideMemory.content);
+  const sensoryMemory = memories.find((m) => matchesAny(m.content, ['sensory sensitivity']));
+  const loudMemory = memories.find((m) => matchesAny(m.content, ['loud shows are hard']));
+  if (sensoryMemory || loudMemory) {
+    const memory = sensoryMemory ?? loudMemory!;
+    cited.push(memory.content);
     return {
-      text: `Watch for intense or dark attractions today. You noted ${cite(darkRideMemory)} — we'll steer clear unless you're ready.`,
+      text: `${cite(memory.content)} — plan quieter pockets through the day and have an exit strategy if things get overwhelming.`,
+      cited,
+    };
+  }
+
+  const heatMemory = memories.find((m) => matchesAny(m.content, ['heat sensitivity']));
+  if (heatMemory) {
+    cited.push(heatMemory.content);
+    return {
+      text: `${cite(heatMemory.content)} — seek shade during peak afternoon hours and hydrate before anyone feels depleted.`,
       cited,
     };
   }
@@ -197,34 +268,44 @@ function buildCaution(memories: Memory[]): { text: string; cited: string[] } {
 }
 
 function buildMagicMoment(trip: Trip, memories: Memory[]): string {
-  const firstTripMemory = memories.find((m) =>
-    matchesAny(m.content, ['first trip', 'first time', 'talking about it']),
-  );
-  if (firstTripMemory) {
-    return `The walk down Main Street at ${trip.destination} is the moment — not a transit segment. Let the kids stare at the castle. That's the plan.`;
+  const combined = memories.map((m) => m.content).join(' ');
+
+  const fireworksMemory = memories.find((m) => matchesAny(m.content, ['fireworks matter']));
+  if (fireworksMemory) {
+    return `${cite(fireworksMemory.content)} — ${dayFixture.park.showtimes[0] ?? 'Evening fireworks'} could be a natural finale if energy allows, not an obligation.`;
+  }
+
+  const photoMemory = memories.find((m) => matchesAny(m.content, ['photos matter']));
+  if (photoMemory) {
+    return `Leave unhurried moments for photos — ${cite(photoMemory.content)}. The best shots often happen between plans.`;
+  }
+
+  if (matchesAny(combined, ['first-timers'])) {
+    return `At ${trip.destination}, the first walk down Main Street is a moment — not a transit segment. Take it in.`;
   }
 
   if (dayFixture.park.showtimes.length > 0) {
     return `${dayFixture.park.showtimes[0]} is tonight if energy allows — a natural finale, not an obligation.`;
   }
 
-  return "Leave one unscheduled hour for whatever catches your family's attention. That's often where the story comes from.";
+  return 'Leave one unscheduled hour for whatever catches this group\'s attention. That\'s often where the story comes from.';
 }
 
 function buildNextAction(trip: Trip, reservation?: Trip['reservation']): string {
   if (reservation?.name?.trim()) {
-    return `Confirm your ${reservation.time} reservation at ${reservation.name} when you arrive. Then take ten minutes to agree on one morning priority together.`;
+    return `Confirm your ${reservation.time} reservation at ${reservation.name} when you arrive. Then agree on one morning priority together.`;
   }
 
-  return `Before you leave for ${trip.destination}, agree on one thing that would make today feel like a win — and write it down.`;
+  return `Before you leave for ${trip.destination}, agree on one thing that would make today feel like a win.`;
 }
 
 export function getTripStatus(trip: Trip, today = new Date()) {
   const dayNumber = tripDayNumber(trip, today);
   const totalDays = totalTripDays(trip);
   const daysUntil = daysUntilTrip(trip, today);
-  const isActive = dayNumber > 0;
   const isPast = today > new Date(trip.endDate + 'T23:59:59');
+  // dayNumber is capped at the last day, so exclude ended trips explicitly.
+  const isActive = dayNumber > 0 && !isPast;
 
   return { dayNumber, totalDays, daysUntil, isActive, isPast };
 }
@@ -239,7 +320,7 @@ export function generateBriefing(trip: Trip, memories: Memory[], today = new Dat
   const citedSet = new Set<string>();
 
   const goal = buildGoal(trip, memories, dayNumber, totalDays);
-  const weather = buildWeather();
+  const weather = buildWeather(memories);
   const pacingResult = buildPacing(memories, trip.reservation);
   const priorityResult = buildPriority(memories);
   const cautionResult = buildCaution(memories);
@@ -278,6 +359,16 @@ export function canGenerateBriefing(trip: Trip | null, memories: Memory[], today
   if (!trip || memories.length === 0) return false;
   const { isActive } = getTripStatus(trip, today);
   return isActive;
+}
+
+// A future trip can show a preview of its Day 1 briefing.
+export function canPreviewBriefing(trip: Trip | null, memories: Memory[], today = new Date()): boolean {
+  if (!trip || memories.length === 0) return false;
+  return getTripStatus(trip, today).daysUntil > 0;
+}
+
+export function generatePreviewBriefing(trip: Trip, memories: Memory[]): Briefing | null {
+  return generateBriefing(trip, memories, new Date(trip.startDate + 'T00:00:00'));
 }
 
 export { pickRelevantMemories };

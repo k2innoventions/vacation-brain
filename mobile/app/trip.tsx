@@ -1,6 +1,6 @@
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +11,7 @@ import {
 
 import ScreenShell from '@/components/ScreenShell';
 import { useTheme } from '@/hooks/useTheme';
+import { showAlert } from '@/lib/alert';
 import type { Reservation, Trip } from '@/lib/types';
 import { useTripContext } from '@/lib/trip-context';
 
@@ -85,12 +86,12 @@ export default function TripScreen() {
   const handleSave = () => {
     const trimmedDestination = destination.trim();
     if (!trimmedDestination) {
-      Alert.alert('Destination required', 'Where are you headed?');
+      showAlert('Destination required', 'Where are you headed?');
       return;
     }
 
     if (endDate < startDate) {
-      Alert.alert('Check your dates', 'End date must be on or after the start date.');
+      showAlert('Check your dates', 'End date must be on or after the start date.');
       return;
     }
 
@@ -99,7 +100,7 @@ export default function TripScreen() {
         (!reservationName.trim() && reservationTime.trim()),
     );
     if (hasPartialReservation) {
-      Alert.alert('Reservation incomplete', 'Enter both a name and time, or leave both blank.');
+      showAlert('Reservation incomplete', 'Enter both a name and time, or leave both blank.');
       return;
     }
 
@@ -110,7 +111,7 @@ export default function TripScreen() {
       goals: goals.trim() || undefined,
       reservation: parseReservation(reservationName, reservationTime, 'dinner'),
     });
-    Alert.alert('Saved', 'Your trip details are ready.');
+    router.back();
   };
 
   return (
